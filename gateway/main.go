@@ -22,6 +22,7 @@ type Gateway struct {
 	proxies  map[string]*httputil.ReverseProxy
 	health   map[string]bool
 	healthMu sync.RWMutex
+	sem      chan struct{}
 }
 
 func loadRoutes(path string) ([]Route, error) {
@@ -38,7 +39,7 @@ func loadRoutes(path string) ([]Route, error) {
 	return routes, nil
 }
 
-func NewGateway(routes []Route) *Gateway {
+func NewGateway(routes []Route, maxConcurrent int) *Gateway {
 	proxies := make(map[string]*httputil.ReverseProxy)
 	healths := make(map[string]bool)
 	for _, route := range routes {
@@ -54,6 +55,7 @@ func NewGateway(routes []Route) *Gateway {
 		proxies:  proxies,
 		health:   healths,
 		healthMu: sync.RWMutex{},
+		sem:      make(chan struct{}, maxConcurrent),
 	}
 }
 
@@ -92,6 +94,8 @@ func checkHealth(target string) bool {
 }
 
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	g.sem <- struct{}{}
+	defer func() { <-g.sem }()
 	for _, route := range g.routes {
 		if strings.HasPrefix(r.URL.Path, route.Prefix) {
 			log.Printf("Proxying request for %s to %s", r.URL.Path, route.Target)
@@ -109,6 +113,21 @@ func (g *Gateway) statusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(g.health)
 }
 
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	paths, err := loadRoutes("routes.json")
 	if err != nil {
@@ -118,7 +137,7 @@ func main() {
 		log.Printf("route: %s | %s", route.Prefix, route.Target)
 	}
 
-	gw := NewGateway(paths)
+	gw := NewGateway(paths, 50)
 	heartbeatMonitor(10*time.Second, gw)
 
 	mux := http.NewServeMux()
@@ -129,5 +148,5 @@ func main() {
 	})
 
 	mux.Handle("/", gw)
-	log.Fatal(http.ListenAndServe(":8000", mux))
+	log.Fatal(http.ListenAndServe(":8000", withCORS(mux)))
 }
