@@ -5,6 +5,7 @@ import (
 	"errors"
 	"main/models"
 	"net/http"
+	"os"
 	"strconv"
 )
 
@@ -13,6 +14,7 @@ type InstanceController struct {
 }
 
 var ErrNotFound = errors.New("instance not found")
+var debugWorkerID = os.Getenv("DEBUG_WORKER_ID")
 
 func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
@@ -38,6 +40,7 @@ func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	w.Header().Set("X-Worker-ID", debugWorkerID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(instance)
 }
@@ -57,6 +60,7 @@ func (c *InstanceController) CreateInstanceHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
+	w.Header().Set("X-Worker-ID", debugWorkerID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(instance)
 }
@@ -78,6 +82,7 @@ func (c *InstanceController) UpdateStatusHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
+	w.Header().Set("X-Worker-ID", debugWorkerID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(instance)
 }
