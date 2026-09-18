@@ -16,8 +16,14 @@ services:
       timeout: 3s
       retries: 5
 
+  gateway:
+    build: ./gateway
+    container_name: gateway
+    ports:
+      - "8000:8000"
+
   backend-get-1: &backend-base
-    build: backend/
+    build: ./backend
     container_name: backend-get-1
     environment: &backend-env
       DB_HOST: db
