@@ -59,6 +59,8 @@ func main() {
 		http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
 	case "put":
 		http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
+	default:
+		log.Fatalf("Unknown role: %s", role)
 	}
 
 	log.Println("Server is running on port 8080...")

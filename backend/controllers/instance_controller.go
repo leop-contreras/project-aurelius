@@ -13,7 +13,6 @@ type InstanceController struct {
 	InstanceModel *models.InstanceModel
 }
 
-var ErrNotFound = errors.New("instance not found")
 var debugWorkerID = os.Getenv("DEBUG_WORKER_ID")
 
 func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +31,7 @@ func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.R
 
 	instance, err := c.InstanceModel.GetInstanceByID(id)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, models.ErrNotFound) {
 			http.Error(w, "Instance not found", http.StatusNotFound)
 		} else {
 			http.Error(w, "Failed to get instance", http.StatusInternalServerError)
