@@ -1,0 +1,14 @@
+[
+    {
+        "prefix": "/api/get",
+        "target": "http://backend-get-1:8080"
+    },
+    {
+        "prefix": "/api/post",
+        "target": "http://backend-post-1:8080"
+    },
+    {
+        "prefix": "/api/put",
+        "target": "http://backend-put-1:8080"
+    }
+]
