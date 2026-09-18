@@ -42,9 +42,14 @@ func main() {
 	log.Printf("Starting worker %v", debugWorkerID)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		role := os.Getenv("ROLE")
+		if role == "" {
+			http.Error(w, "no role configured", http.StatusServiceUnavailable)
+			return
+		}
 		w.Header().Set("X-Worker-ID", debugWorkerID)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		fmt.Fprintf(w, "OK %s", role)
 	})
 
 	switch role := os.Getenv("ROLE"); role {

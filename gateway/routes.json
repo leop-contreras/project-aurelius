@@ -1,6 +1,6 @@
 [
     {
-        "prefix": "/api/get",
+        "prefix": "/instance",
         "target": "http://backend-get-1:8080"
     },
     {
