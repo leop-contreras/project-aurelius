@@ -3,7 +3,6 @@ package models
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 )
 
 type Instance struct {
@@ -26,11 +25,7 @@ func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("get instance %d: %w", id, err)
-
+		return nil, err
 	}
 
 	return instance, nil
@@ -44,7 +39,7 @@ func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
 	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
 
 	if err != nil {
-		return nil, fmt.Errorf("create instance %q: %w", name, err)
+		return nil, err
 	}
 
 	return instance, nil
@@ -58,10 +53,7 @@ func (m *InstanceModel) UpdateStatus(id int, status string) (*Instance, error) {
 	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("update instance %d status to %q: %w", id, status, err)
+		return nil, err
 	}
 
 	return instance, nil

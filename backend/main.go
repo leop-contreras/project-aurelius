@@ -37,9 +37,9 @@ func main() {
 	instanceModel := &models.InstanceModel{DB: db}
 	instanceController := &controllers.InstanceController{InstanceModel: instanceModel}
 
-	http.HandleFunc("GET /instance/{id}", instanceController.GetInstanceHandler)
+	http.HandleFunc("GET /instance", instanceController.GetInstanceHandler)
 	http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
-	http.HandleFunc("PUT /instance/{id}/status", instanceController.UpdateStatusHandler)
+	http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
 
 	log.Println("Server is running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

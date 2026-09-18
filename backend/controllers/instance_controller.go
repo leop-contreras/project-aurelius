@@ -66,6 +66,7 @@ func (c *InstanceController) UpdateStatusHandler(w http.ResponseWriter, r *http.
 		ID     int    `json:"id"`
 		Status string `json:"status"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
