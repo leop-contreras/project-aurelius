@@ -18,7 +18,7 @@ type InstanceModel struct {
 
 var ErrNotFound = errors.New("instance not found")
 
-func (m *InstanceModel) Get(id int) (*Instance, error) {
+func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 	instance := &Instance{}
 	query := `SELECT id, name, status FROM instances WHERE id = $1`
 
@@ -36,7 +36,7 @@ func (m *InstanceModel) Get(id int) (*Instance, error) {
 	return instance, nil
 }
 
-func (m *InstanceModel) Create(name string) (*Instance, error) {
+func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
 	instance := &Instance{}
 	query := "INSERT INTO instances (name, status) VALUES ($1, 'active') RETURNING id, name, status"
 
@@ -50,18 +50,19 @@ func (m *InstanceModel) Create(name string) (*Instance, error) {
 	return instance, nil
 }
 
-func (m *InstanceModel) UpdateStatus(id int, status string) (int, error) {
-	query := "UPDATE instances SET status = $1 WHERE id = $2 RETURNING id"
+func (m *InstanceModel) UpdateStatus(id int, status string) (*Instance, error) {
+	instance := &Instance{}
+	query := "UPDATE instances SET status = $1 WHERE id = $2 RETURNING id, name, status"
 
 	row := m.DB.QueryRow(query, status, id)
-	err := row.Scan(&id)
+	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return -1, ErrNotFound
+			return nil, ErrNotFound
 		}
-		return -1, fmt.Errorf("update instance %d status to %q: %w", id, status, err)
+		return nil, fmt.Errorf("update instance %d status to %q: %w", id, status, err)
 	}
 
-	return id, nil
+	return instance, nil
 }
