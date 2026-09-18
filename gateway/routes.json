@@ -1,14 +1,14 @@
 [
     {
-        "prefix": "/instance",
-        "target": "http://lb-get:9000"
+        "prefix": "/instance/update-status",
+        "target": "http://lb-put:9000"
     },
     {
         "prefix": "/instance/create",
         "target": "http://lb-post:9000"
     },
     {
-        "prefix": "/instance/update-status",
-        "target": "http://lb-put:9000"
+        "prefix": "/instance",
+        "target": "http://lb-get:9000"
     }
 ]

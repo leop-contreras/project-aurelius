@@ -20,7 +20,7 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 
-	debugWorkerID := os.Getenv("DEBUG-WORKER-ID")
+	debugWorkerID := os.Getenv("DEBUG_WORKER_ID")
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPass, dbName)
