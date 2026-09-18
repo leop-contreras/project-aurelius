@@ -21,6 +21,30 @@ services:
     container_name: gateway
     ports:
       - "8000:8000"
+  
+  lb-get:
+    build: ./load-balancer
+    container_name: lb-get
+    environment:
+      - TARGETS=http://backend-get-1:8080,http://backend-get-2:8080
+    ports:
+      - "9000:9000"
+  
+  lb-post:
+    build: ./load-balancer
+    container_name: lb-post
+    environment:
+      - TARGETS=http://backend-post-1:8080,http://backend-post-2:8080
+    ports:
+      - "9000:9000"
+
+  lb-put:
+    build: ./load-balancer
+    container_name: lb-put
+    environment:
+      - TARGETS=http://backend-put-1:8080,http://backend-put-2:8080
+    ports:
+      - "9000:9000"
 
   backend-get-1: &backend-base
     build: ./backend

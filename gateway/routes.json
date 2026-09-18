@@ -1,14 +1,14 @@
 [
     {
         "prefix": "/instance",
-        "target": "http://backend-get-1:8080"
+        "target": "http://lb-get:9000"
     },
     {
-        "prefix": "/api/post",
-        "target": "http://backend-post-1:8080"
+        "prefix": "/instance/create",
+        "target": "http://lb-post:9000"
     },
     {
-        "prefix": "/api/put",
-        "target": "http://backend-put-1:8080"
+        "prefix": "/instance/update-status",
+        "target": "http://lb-put:9000"
     }
 ]
