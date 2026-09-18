@@ -16,17 +16,57 @@ services:
       timeout: 3s
       retries: 5
 
-  backend:
+  backend-get-1: &backend-base
     build: backend/
-    container_name: backend-1
-    ports:
-      - "8080:8080"
-    environment:
+    container_name: backend-get-1
+    environment: &backend-env
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: adm1n
       DB_PASSWORD: adm1n
       DB_NAME: aurelius
+      ROLE: get
+      DEBUG-WORKER-ID: 1
     depends_on:
       db:
         condition: service_healthy
+
+  backend-get-2:
+    <<: *backend-base
+    container_name: backend-get-2
+    environment:
+      <<: *backend-env
+      ROLE: get
+      DEBUG-WORKER-ID: 2
+
+  backend-post-1:
+    <<: *backend-base
+    container_name: backend-post-1
+    environment:
+      <<: *backend-env
+      ROLE: post
+      DEBUG-WORKER-ID: 3
+
+  backend-post-2:
+    <<: *backend-base
+    container_name: backend-post-2
+    environment:
+      <<: *backend-env
+      ROLE: post
+      DEBUG-WORKER-ID: 4
+
+  backend-put-1:
+    <<: *backend-base
+    container_name: backend-put-1
+    environment:
+      <<: *backend-env
+      ROLE: put
+      DEBUG-WORKER-ID: 5
+
+  backend-put-2:
+    <<: *backend-base
+    container_name: backend-put-2
+    environment:
+      <<: *backend-env
+      ROLE: put
+      DEBUG-WORKER-ID: 6

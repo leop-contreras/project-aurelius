@@ -20,6 +20,8 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 
+	debugWorkerID := os.Getenv("DEBUG-WORKER-ID")
+
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPass, dbName)
 
@@ -37,9 +39,22 @@ func main() {
 	instanceModel := &models.InstanceModel{DB: db}
 	instanceController := &controllers.InstanceController{InstanceModel: instanceModel}
 
-	http.HandleFunc("GET /instance", instanceController.GetInstanceHandler)
-	http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
-	http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
+	log.Printf("Starting worker %v", debugWorkerID)
+
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Worker-ID", debugWorkerID)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	switch role := os.Getenv("ROLE"); role {
+	case "get":
+		http.HandleFunc("GET /instance", instanceController.GetInstanceHandler)
+	case "post":
+		http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
+	case "put":
+		http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
+	}
 
 	log.Println("Server is running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
