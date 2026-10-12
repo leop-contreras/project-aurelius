@@ -31,28 +31,26 @@ Run `docker compose down -v`.
 frontend:3000
       |
       v
- middleware:8000          (prefix routing, static service discovery, CORS)
+ nginx-gateway:8000       (reverse proxy, prefix routing, load balancing, CORS)
       |
-      +--> lb-get:9000  --> backend-get-1:8080  / backend-get-2:8080
-      +--> lb-post:9000 --> backend-post-1:8080 / backend-post-2:8080
-      +--> lb-put:9000  --> backend-put-1:8080  / backend-put-2:8080
+      +--> get_pool  --> backend-get-1:8080  / backend-get-2:8080
+      +--> post_pool --> backend-post-1:8080 / backend-post-2:8080
+      +--> put_pool  --> backend-put-1:8080  / backend-put-2:8080
                                     |
                                     v
                               postgres:5432
 ```
 
-12 containers, 6 images.
+9 containers, 4 images.
 
 ## Modules
 
 | Module | Container(s) | Notes |
 |---|---|---|
 | Frontend | `frontend` | Static HTML + nginx. Port 3000. |
-| Middleware | `middleware` | Reads `routes.json`, matches prefix, proxies to an LB. Port 8000. |
-| Load balancer | `lb-get`, `lb-post`, `lb-put` | One image, three configs via `TARGETS`. Round robin + health checks. |
+| Gateway + load balancer | `nginx-gateway` | nginx, config in `nginx-gateway/nginx.conf`. Matches prefix, load balances to a pool. Port 8000. |
 | Backends | `backend-{get,post,put}-{1,2}` | One image, role set by `ROLE`. MVC. |
 | Database | `postgres_db` | Seeded from `schema.sql` on first start. |
-
 
 ## Endpoints
 
@@ -61,14 +59,19 @@ frontend:3000
 | GET | `/instance?id=1` | read service |
 | POST | `/instance/create` | write service |
 | PUT | `/instance/update-status` | update service |
-| GET | `/health` | liveness of whatever tier you asked |
-| GET | `/status` | that tier's view of its downstream health |
+| GET | `/health` | nginx liveness, answered by nginx |
+| GET | `/status` | nginx connection stats |
 
 ## Demo
 
 1. Click Read a few times, you'll see how worker IDs alternate.
 2. Run `docker stop backend-get-2`.
-3. Click Read a few times, you'll see how the worker ID 2 is skipped.
-4. Run `docker start backend-get-2` and wait 2 seconds.
+3. Click Read a few times. The first few that land on worker 2 take abouts 1s (nginx fails to connect and retries on worker 1), after 3 failures worker 2 is skipped.
+4. Run `docker start backend-get-2` and wait up to 30 seconds (`fail_timeout`).
 5. Click Read a few times, you'll see how worker IDs alternate.
-6. `docker stop backend-get-1 backend-get-2`. Clicking Read returns 503.
+6. `docker stop backend-get-1 backend-get-2`. Clicking Read returns 502.
+
+## Note
+
+nginx resolves the backend IPs once, when it starts. Restarted backends can come back with different IPs, and nginx keeps sending to the old ones, so requests start landing on the wrong service and return 404. 
+Run `docker restart nginx-gateway` after restarting backends.

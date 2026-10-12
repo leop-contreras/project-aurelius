@@ -19,29 +19,18 @@ services:
       timeout: 3s
       retries: 5
 
-  gateway:
-    build: ./gateway
-    container_name: gateway
+  nginx-gateway:
+    build: ./nginx-gateway
+    container_name: nginx-gateway
     ports:
       - "8000:8000"
-  
-  lb-get:
-    build: ./load-balancer
-    container_name: lb-get
-    environment:
-      - TARGETS=http://backend-get-1:8080,http://backend-get-2:8080
-  
-  lb-post:
-    build: ./load-balancer
-    container_name: lb-post
-    environment:
-      - TARGETS=http://backend-post-1:8080,http://backend-post-2:8080
-
-  lb-put:
-    build: ./load-balancer
-    container_name: lb-put
-    environment:
-      - TARGETS=http://backend-put-1:8080,http://backend-put-2:8080
+    depends_on:
+      - backend-get-1
+      - backend-get-2
+      - backend-post-1
+      - backend-post-2
+      - backend-put-1
+      - backend-put-2
 
   backend-get-1: &backend-base
     build: ./backend
