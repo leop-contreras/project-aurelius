@@ -32,25 +32,39 @@ frontend:3000
       |
       v
  nginx-gateway:8000       (reverse proxy, prefix routing, load balancing, CORS)
-      |
+      |                   (upstreams rendered from consul by consul-template)
       +--> get_pool  --> backend-get-1:8080  / backend-get-2:8080
       +--> post_pool --> backend-post-1:8080 / backend-post-2:8080
       +--> put_pool  --> backend-put-1:8080  / backend-put-2:8080
                                     |
                                     v
                               postgres:5432
+
+ backends register/deregister ---> consul:8500 <--- nginx-gateway watches
+                                   (health checks every backend's /health)
 ```
 
-9 containers, 4 images.
+10 containers, 5 images.
 
 ## Modules
 
 | Module | Container(s) | Notes |
 |---|---|---|
 | Frontend | `frontend` | Static HTML + nginx. Port 3000. |
-| Gateway + load balancer | `nginx-gateway` | nginx, config in `nginx-gateway/nginx.conf`. Matches prefix, load balances to a pool. Port 8000. |
-| Backends | `backend-{get,post,put}-{1,2}` | One image, role set by `ROLE`. MVC. |
+| Gateway + load balancer | `nginx-gateway` | nginx + consul-template. Config is `nginx-gateway/templates/nginx.conf.ctmpl`. Matches prefix, load balances to a pool. Port 8000. |
+| Service discovery | `consul` | Single node, dev mode. Service registry + health checks. UI on port 8500. |
+| Backends | `backend-{get,post,put}-{1,2}` | One image, role set by `ROLE`, identity set by `INSTANCE_ID`. Register themselves in consul. MVC. |
 | Database | `postgres_db` | Seeded from `schema.sql` on first start. |
+
+## Service discovery
+
+| Step | What happens |
+|---|---|
+| Register | On start, each backend registers in consul as service `backend`, tagged with its role (`get`, `post`, `put`), address `INSTANCE_ID:8080`. Retries up to 10 times while consul starts. |
+| Health check | Consul calls `http://INSTANCE_ID:8080/health` every 5s (2s timeout). Only passing instances are used. |
+| Deregister | On `docker stop` (SIGTERM) the backend deregisters itself before exiting. If it dies without deregistering, consul removes it after 1 minute critical. |
+| Discovery | consul-template watches `get.backend`, `post.backend` and `put.backend`, renders `nginx.conf` and runs `nginx -s reload` on every change. No healthy instances renders a placeholder `server 127.0.0.1:65535 down;` and nginx returns 502. |
+| Resolve | `resolver 127.0.0.11` + `resolve` makes nginx resolve backend names through Docker's DNS at runtime, so a backend that died before consul noticed doesn't break a reload. |
 
 ## Endpoints
 
@@ -62,16 +76,15 @@ frontend:3000
 | GET | `/health` | nginx liveness, answered by nginx |
 | GET | `/status` | nginx connection stats |
 
+Consul UI: <http://localhost:8500/ui>.
+
 ## Demo
 
-1. Click Read a few times, you'll see how worker IDs alternate.
-2. Run `docker stop backend-get-2`.
-3. Click Read a few times. The first few that land on worker 2 take abouts 1s (nginx fails to connect and retries on worker 1), after 3 failures worker 2 is skipped.
-4. Run `docker start backend-get-2` and wait up to 30 seconds (`fail_timeout`).
-5. Click Read a few times, you'll see how worker IDs alternate.
-6. `docker stop backend-get-1 backend-get-2`. Clicking Read returns 502.
-
-## Note
-
-nginx resolves the backend IPs once, when it starts. Restarted backends can come back with different IPs, and nginx keeps sending to the old ones, so requests start landing on the wrong service and return 404. 
-Run `docker restart nginx-gateway` after restarting backends.
+1. Open <http://localhost:8500/ui>, you'll see the 6 backends under `backend`, all passing.
+2. Click Read a few times, you'll see how worker IDs alternate.
+3. Run `docker stop backend-get-2`. It disappears from consul and nginx in about a second.
+4. Click Read a few times, only worker 1 answers.
+5. Run `docker start backend-get-2`. It registers again and is back in about 2 seconds.
+6. Click Read a few times, you'll see how worker IDs alternate.
+7. `docker stop backend-get-1 backend-get-2`. Clicking Read returns 502.
+8. See the rendered config with `docker exec nginx-gateway cat /etc/nginx/nginx.conf`.
