@@ -19,12 +19,22 @@ services:
       timeout: 3s
       retries: 5
 
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    command: "agent -dev -client=0.0.0.0 -ui"
+    ports:
+      - "8500:8500"
+
   nginx-gateway:
     build: ./nginx-gateway
     container_name: nginx-gateway
     ports:
       - "8000:8000"
+    environment:
+      CONSUL_HTTP_ADDR: consul:8500
     depends_on:
+      - consul
       - backend-get-1
       - backend-get-2
       - backend-post-1
@@ -41,17 +51,22 @@ services:
       DB_USER: adm1n
       DB_PASSWORD: adm1n
       DB_NAME: aurelius
+      CONSUL_HTTP_ADDR: consul:8500
+      INSTANCE_ID: backend-get-1
       ROLE: get
       DEBUG_WORKER_ID: 1
     depends_on:
       db:
         condition: service_healthy
+      consul:
+        condition: service_started
 
   backend-get-2:
     <<: *backend-base
     container_name: backend-get-2
     environment:
       <<: *backend-env
+      INSTANCE_ID: backend-get-2
       ROLE: get
       DEBUG_WORKER_ID: 2
 
@@ -60,6 +75,7 @@ services:
     container_name: backend-post-1
     environment:
       <<: *backend-env
+      INSTANCE_ID: backend-post-1
       ROLE: post
       DEBUG_WORKER_ID: 3
 
@@ -68,6 +84,7 @@ services:
     container_name: backend-post-2
     environment:
       <<: *backend-env
+      INSTANCE_ID: backend-post-2
       ROLE: post
       DEBUG_WORKER_ID: 4
 
@@ -76,6 +93,7 @@ services:
     container_name: backend-put-1
     environment:
       <<: *backend-env
+      INSTANCE_ID: backend-put-1
       ROLE: put
       DEBUG_WORKER_ID: 5
 
@@ -84,5 +102,6 @@ services:
     container_name: backend-put-2
     environment:
       <<: *backend-env
+      INSTANCE_ID: backend-put-2
       ROLE: put
       DEBUG_WORKER_ID: 6
