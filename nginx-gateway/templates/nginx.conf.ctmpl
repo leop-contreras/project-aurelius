@@ -1,24 +1,38 @@
 events {}
 
 http {
+    resolver 127.0.0.11 valid=10s;
+
     upstream get_pool {
-        server backend-get-1:8080 max_fails=3 fail_timeout=30s;
-        server backend-get-2:8080 max_fails=3 fail_timeout=30s;
+        zone get_pool 64k;
+        {{ range service "get.backend" }}
+        server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s;
+        {{ else }}
+        server 127.0.0.1:65535 down;
+        {{ end }}
     }
 
     upstream post_pool {
-        server backend-post-1:8080 max_fails=3 fail_timeout=30s;
-        server backend-post-2:8080 max_fails=3 fail_timeout=30s;
+        zone post_pool 64k;
+        {{ range service "post.backend" }}
+        server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s;
+        {{ else }}
+        server 127.0.0.1:65535 down;
+        {{ end }}
     }
 
     upstream put_pool {
-        server backend-put-1:8080 max_fails=3 fail_timeout=30s;
-        server backend-put-2:8080 max_fails=3 fail_timeout=30s;
+        zone put_pool 64k;
+        {{ range service "put.backend" }}
+        server {{ .Address }}:{{ .Port }} resolve max_fails=3 fail_timeout=30s;
+        {{ else }}
+        server 127.0.0.1:65535 down;
+        {{ end }}
     }
 
     server {
         listen 8000;
-        
+
         # This headers replicate the mechanism we used on Golang for this work.
         add_header Access-Control-Allow-Origin * always;
         add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
