@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package aurelius;
+option go_package = "main/proto_gen";
+
+service InstanceService {
+  rpc GetInstance(GetInstanceRequest) returns (Instance);
+  rpc CreateInstance(CreateInstanceRequest) returns (Instance);
+  rpc UpdateStatus(UpdateStatusRequest) returns (Instance);
+}
+
+message Instance {
+  int32 id = 1;
+  string name = 2;
+  string status = 3;
+}
+
+message GetInstanceRequest {
+  int32 id = 1;
+}
+
+message CreateInstanceRequest {
+  string name = 1;
+}
+
+message UpdateStatusRequest {
+  int32 id = 1;
+  string status = 2;
+}
