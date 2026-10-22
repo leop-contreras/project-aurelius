@@ -31,6 +31,7 @@ services:
     container_name: nginx-gateway
     ports:
       - "8000:8000"
+      - "9000:9000"
     environment:
       CONSUL_HTTP_ADDR: consul:8500
     depends_on:
@@ -42,6 +43,14 @@ services:
       - backend-put-1
       - backend-put-2
 
+  api-service:
+    build: ./api-service
+    container_name: api-service
+    environment:
+      GATEWAY_GRPC_ADDR: nginx-gateway:9000
+    depends_on:
+      - nginx-gateway
+
   backend-get-1: &backend-base
     build: ./backend
     container_name: backend-get-1
@@ -52,6 +61,7 @@ services:
       DB_PASSWORD: adm1n
       DB_NAME: aurelius
       CONSUL_HTTP_ADDR: consul:8500
+      GATEWAY_GRPC_ADDR: nginx-gateway:9000
       INSTANCE_ID: backend-get-1
       ROLE: get
       DEBUG_WORKER_ID: 1

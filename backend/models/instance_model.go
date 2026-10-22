@@ -24,6 +24,9 @@ func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 	row := m.DB.QueryRow(query, id)
 	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
 
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

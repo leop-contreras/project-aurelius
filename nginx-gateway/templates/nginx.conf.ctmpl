@@ -30,8 +30,15 @@ http {
         {{ end }}
     }
 
+    upstream api_pool {
+        zone api_pool 64k;
+        server api-service:8080 resolve;
+    }
+
     server {
         listen 8000;
+
+        proxy_connect_timeout 1s;
 
         # This headers replicate the mechanism we used on Golang for this work.
         add_header Access-Control-Allow-Origin * always;
@@ -43,24 +50,8 @@ http {
             return 204;
         }
 
-        location /instance/update-status {
-            proxy_pass http://put_pool;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        location /instance/create {
-            proxy_pass http://post_pool;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
         location /instance {
-            proxy_pass http://get_pool;
+            proxy_pass http://api_pool;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -73,6 +64,23 @@ http {
 
         location /status {
             stub_status;
+        }
+    }
+
+    server {
+        listen 9000;
+        http2 on;
+
+        location /aurelius.InstanceService/GetInstance {
+            grpc_pass grpc://get_pool;
+        }
+
+        location /aurelius.InstanceService/CreateInstance {
+            grpc_pass grpc://post_pool;
+        }
+
+        location /aurelius.InstanceService/UpdateStatus {
+            grpc_pass grpc://put_pool;
         }
     }
 }

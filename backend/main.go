@@ -1,11 +1,10 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,9 +12,14 @@ import (
 
 	"main/controllers"
 	"main/models"
+	"main/proto_gen"
 
 	consul "github.com/hashicorp/consul/api"
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func registerWithConsul(client *consul.Client, instanceID string, role string) error {
@@ -24,9 +28,9 @@ func registerWithConsul(client *consul.Client, instanceID string, role string) e
 		Name:    "backend",
 		Tags:    []string{role},
 		Address: instanceID,
-		Port:    8080,
+		Port:    50051,
 		Check: &consul.AgentServiceCheck{
-			HTTP:                           fmt.Sprintf("http://%s:8080/health", instanceID),
+			GRPC:                           fmt.Sprintf("%s:50051", instanceID),
 			Interval:                       "5s",
 			Timeout:                        "2s",
 			DeregisterCriticalServiceAfter: "1m",
@@ -82,29 +86,28 @@ func main() {
 	}
 
 	instanceModel := &models.InstanceModel{DB: db}
-	instanceController := &controllers.InstanceController{InstanceModel: instanceModel}
 
 	log.Printf("Starting worker %v", debugWorkerID)
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		role := os.Getenv("ROLE")
-		if role == "" {
-			http.Error(w, "no role configured", http.StatusServiceUnavailable)
-			return
-		}
-		w.Header().Set("X-Worker-ID", debugWorkerID)
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "OK %s", role)
-	})
+	grpcServer := grpc.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 
 	role := os.Getenv("ROLE")
 	switch role {
 	case "get":
-		http.HandleFunc("GET /instance", instanceController.GetInstanceHandler)
+		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.ReadController{InstanceModel: instanceModel})
 	case "post":
-		http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
+		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.WriteController{InstanceModel: instanceModel})
 	case "put":
-		http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
+		conn, err := grpc.NewClient(os.Getenv("GATEWAY_GRPC_ADDR"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("Failed to create grpc client: %v", err)
+		}
+		defer conn.Close()
+		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.UpdateController{
+			InstanceModel: instanceModel,
+			ReadClient:    proto_gen.NewInstanceServiceClient(conn),
+		})
 	default:
 		log.Fatalf("Unknown role: %s", role)
 	}
@@ -118,7 +121,10 @@ func main() {
 		log.Printf("WARNING: %v", err)
 	}
 
-	srv := &http.Server{Addr: ":8080"}
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -126,13 +132,11 @@ func main() {
 		<-sigCh
 		log.Printf("Shutting down worker %v", debugWorkerID)
 		deregisterFromConsul(consulClient, instanceID)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		srv.Shutdown(ctx)
+		grpcServer.GracefulStop()
 	}()
 
-	log.Println("Server is running on port 8080...")
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	log.Println("Server is running on port 50051...")
+	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -1,87 +1,86 @@
 package controllers
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
+	"log"
 	"main/models"
-	"net/http"
+	"main/proto_gen"
 	"os"
-	"strconv"
-)
 
-type InstanceController struct {
-	InstanceModel *models.InstanceModel
-}
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+)
 
 var debugWorkerID = os.Getenv("DEBUG_WORKER_ID")
 
-func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get("id")
+type ReadController struct {
+	proto_gen.UnimplementedInstanceServiceServer
+	InstanceModel *models.InstanceModel
+}
 
-	if idStr == "" {
-		http.Error(w, "Missing instance ID", http.StatusBadRequest)
-		return
+type WriteController struct {
+	proto_gen.UnimplementedInstanceServiceServer
+	InstanceModel *models.InstanceModel
+}
+
+type UpdateController struct {
+	proto_gen.UnimplementedInstanceServiceServer
+	InstanceModel *models.InstanceModel
+	ReadClient    proto_gen.InstanceServiceClient
+}
+
+func toProto(instance *models.Instance) *proto_gen.Instance {
+	return &proto_gen.Instance{
+		Id:     int32(instance.ID),
+		Name:   instance.Name,
+		Status: instance.Status,
 	}
+}
 
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid instance ID", http.StatusBadRequest)
-		return
-	}
+func setWorkerID(ctx context.Context) {
+	grpc.SetHeader(ctx, metadata.Pairs("x-worker-id", debugWorkerID))
+}
 
-	instance, err := c.InstanceModel.GetInstanceByID(id)
+func (c *ReadController) GetInstance(ctx context.Context, req *proto_gen.GetInstanceRequest) (*proto_gen.Instance, error) {
+	instance, err := c.InstanceModel.GetInstanceByID(int(req.Id))
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {
-			http.Error(w, "Instance not found", http.StatusNotFound)
-		} else {
-			http.Error(w, "Failed to get instance", http.StatusInternalServerError)
+			return nil, status.Error(codes.NotFound, "Instance not found")
 		}
-		return
+		return nil, status.Error(codes.Internal, "Failed to get instance")
 	}
 
-	w.Header().Set("X-Worker-ID", debugWorkerID)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance)
+	setWorkerID(ctx)
+	return toProto(instance), nil
 }
 
-func (c *InstanceController) CreateInstanceHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Name string `json:"name"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	instance, err := c.InstanceModel.CreateInstance(input.Name)
+func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.CreateInstanceRequest) (*proto_gen.Instance, error) {
+	instance, err := c.InstanceModel.CreateInstance(req.Name)
 	if err != nil {
-		http.Error(w, "Failed to create instance", http.StatusInternalServerError)
-		return
+		return nil, status.Error(codes.Internal, "Failed to create instance")
 	}
 
-	w.Header().Set("X-Worker-ID", debugWorkerID)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance)
+	setWorkerID(ctx)
+	return toProto(instance), nil
 }
 
-func (c *InstanceController) UpdateStatusHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		ID     int    `json:"id"`
-		Status string `json:"status"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	instance, err := c.InstanceModel.UpdateStatus(input.ID, input.Status)
+func (c *UpdateController) UpdateStatus(ctx context.Context, req *proto_gen.UpdateStatusRequest) (*proto_gen.Instance, error) {
+	var header metadata.MD
+	_, err := c.ReadClient.GetInstance(ctx, &proto_gen.GetInstanceRequest{Id: req.Id}, grpc.Header(&header))
 	if err != nil {
-		http.Error(w, "Failed to update instance status", http.StatusInternalServerError)
-		return
+		log.Printf("Read service check for instance %d failed: %v", req.Id, err)
+		return nil, err
+	}
+	log.Printf("Instance %d exists, checked by read worker %v", req.Id, header.Get("x-worker-id"))
+
+	instance, err := c.InstanceModel.UpdateStatus(int(req.Id), req.Status)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "Failed to update instance status")
 	}
 
-	w.Header().Set("X-Worker-ID", debugWorkerID)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance)
+	setWorkerID(ctx)
+	return toProto(instance), nil
 }
