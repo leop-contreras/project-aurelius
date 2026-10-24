@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"main/controllers"
+	"main/events"
+	"main/kafkax"
 	"main/models"
 	"main/proto_gen"
 
@@ -97,16 +99,24 @@ func main() {
 	case "get":
 		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.ReadController{InstanceModel: instanceModel})
 	case "post":
-		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.WriteController{InstanceModel: instanceModel})
+		writer := kafkax.NewWriter([]string{os.Getenv("KAFKA_BROKER")}, events.TopicInstanceCreated)
+		defer writer.Close()
+		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.WriteController{
+			InstanceModel: instanceModel,
+			Events:        writer,
+		})
 	case "put":
 		conn, err := grpc.NewClient(os.Getenv("GATEWAY_GRPC_ADDR"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("Failed to create grpc client: %v", err)
 		}
 		defer conn.Close()
+		writer := kafkax.NewWriter([]string{os.Getenv("KAFKA_BROKER")}, events.TopicInstanceStatusUpdated)
+		defer writer.Close()
 		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.UpdateController{
 			InstanceModel: instanceModel,
 			ReadClient:    proto_gen.NewInstanceServiceClient(conn),
+			Events:        writer,
 		})
 	default:
 		log.Fatalf("Unknown role: %s", role)

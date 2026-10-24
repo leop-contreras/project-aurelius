@@ -4,10 +4,16 @@ import (
 	"context"
 	"errors"
 	"log"
+	"main/events"
+	"main/kafkax"
 	"main/models"
 	"main/proto_gen"
 	"os"
+	"strconv"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -24,12 +30,14 @@ type ReadController struct {
 type WriteController struct {
 	proto_gen.UnimplementedInstanceServiceServer
 	InstanceModel *models.InstanceModel
+	Events        *kafka.Writer
 }
 
 type UpdateController struct {
 	proto_gen.UnimplementedInstanceServiceServer
 	InstanceModel *models.InstanceModel
 	ReadClient    proto_gen.InstanceServiceClient
+	Events        *kafka.Writer
 }
 
 func toProto(instance *models.Instance) *proto_gen.Instance {
@@ -42,6 +50,18 @@ func toProto(instance *models.Instance) *proto_gen.Instance {
 
 func setWorkerID(ctx context.Context) {
 	grpc.SetHeader(ctx, metadata.Pairs("x-worker-id", debugWorkerID))
+}
+
+func publishEvent(w *kafka.Writer, eventType string, instance *models.Instance) {
+	kafkax.Publish(w, strconv.Itoa(instance.ID), events.InstanceEvent{
+		EventID:    uuid.NewString(),
+		Type:       eventType,
+		InstanceID: instance.ID,
+		Name:       instance.Name,
+		Status:     instance.Status,
+		WorkerID:   debugWorkerID,
+		OccurredAt: time.Now().UTC(),
+	})
 }
 
 func (c *ReadController) GetInstance(ctx context.Context, req *proto_gen.GetInstanceRequest) (*proto_gen.Instance, error) {
@@ -63,6 +83,7 @@ func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.Cre
 		return nil, status.Error(codes.Internal, "Failed to create instance")
 	}
 
+	publishEvent(c.Events, events.TopicInstanceCreated, instance)
 	setWorkerID(ctx)
 	return toProto(instance), nil
 }
@@ -81,6 +102,7 @@ func (c *UpdateController) UpdateStatus(ctx context.Context, req *proto_gen.Upda
 		return nil, status.Error(codes.Internal, "Failed to update instance status")
 	}
 
+	publishEvent(c.Events, events.TopicInstanceStatusUpdated, instance)
 	setWorkerID(ctx)
 	return toProto(instance), nil
 }
