@@ -129,6 +129,7 @@ func main() {
 			Events:        writer,
 		}
 		proto_gen.RegisterInstanceServiceServer(grpcServer, updateController)
+		go updateController.AutoClean()
 	default:
 		log.Fatalf("Unknown role: %s", role)
 	}

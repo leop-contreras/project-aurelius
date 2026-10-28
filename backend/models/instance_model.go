@@ -131,3 +131,22 @@ func (m *InstanceModel) RenewInstance(id int) (*Instance, error) {
 	}
 	return instance, err
 }
+
+func (m *InstanceModel) GetExpired() ([]*Instance, error) {
+	rows, err := m.DB.Query("SELECT " + columns + " FROM instances WHERE status = 'active' AND expires_at < now()")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	instances := []*Instance{}
+	for rows.Next() {
+		instance, err := scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		instances = append(instances, instance)
+	}
+
+	return instances, rows.Err()
+}

@@ -206,3 +206,28 @@ func (c *UpdateController) RenewInstance(ctx context.Context, req *proto_gen.Ren
 	setWorkerID(ctx)
 	return toProto(instance), nil
 }
+
+func (c *UpdateController) AutoClean() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		expired, err := c.InstanceModel.GetExpired()
+		if err != nil {
+			log.Printf("Failed to get expired instances: %v", err)
+			continue
+		}
+
+		for _, instance := range expired {
+			if err := c.Docker.RemoveContainer(instance.ID); err != nil {
+				log.Printf("Failed to remove container for instance %d: %v", instance.ID, err)
+				continue
+			}
+			if _, err := c.InstanceModel.UpdateStatus(instance.ID, "inactive"); err != nil {
+				log.Printf("Failed to update instance %d status: %v", instance.ID, err)
+				continue
+			}
+			log.Printf("Instance %d expired, container removed", instance.ID)
+		}
+	}
+}
