@@ -20,8 +20,10 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	InstanceService_GetInstance_FullMethodName    = "/aurelius.InstanceService/GetInstance"
+	InstanceService_ListInstances_FullMethodName  = "/aurelius.InstanceService/ListInstances"
 	InstanceService_CreateInstance_FullMethodName = "/aurelius.InstanceService/CreateInstance"
 	InstanceService_UpdateStatus_FullMethodName   = "/aurelius.InstanceService/UpdateStatus"
+	InstanceService_RenewInstance_FullMethodName  = "/aurelius.InstanceService/RenewInstance"
 )
 
 // InstanceServiceClient is the client API for InstanceService service.
@@ -29,8 +31,10 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InstanceServiceClient interface {
 	GetInstance(ctx context.Context, in *GetInstanceRequest, opts ...grpc.CallOption) (*Instance, error)
+	ListInstances(ctx context.Context, in *ListInstancesRequest, opts ...grpc.CallOption) (*InstanceList, error)
 	CreateInstance(ctx context.Context, in *CreateInstanceRequest, opts ...grpc.CallOption) (*Instance, error)
 	UpdateStatus(ctx context.Context, in *UpdateStatusRequest, opts ...grpc.CallOption) (*Instance, error)
+	RenewInstance(ctx context.Context, in *RenewInstanceRequest, opts ...grpc.CallOption) (*Instance, error)
 }
 
 type instanceServiceClient struct {
@@ -45,6 +49,16 @@ func (c *instanceServiceClient) GetInstance(ctx context.Context, in *GetInstance
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Instance)
 	err := c.cc.Invoke(ctx, InstanceService_GetInstance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instanceServiceClient) ListInstances(ctx context.Context, in *ListInstancesRequest, opts ...grpc.CallOption) (*InstanceList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstanceList)
+	err := c.cc.Invoke(ctx, InstanceService_ListInstances_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,13 +85,25 @@ func (c *instanceServiceClient) UpdateStatus(ctx context.Context, in *UpdateStat
 	return out, nil
 }
 
+func (c *instanceServiceClient) RenewInstance(ctx context.Context, in *RenewInstanceRequest, opts ...grpc.CallOption) (*Instance, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Instance)
+	err := c.cc.Invoke(ctx, InstanceService_RenewInstance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InstanceServiceServer is the server API for InstanceService service.
 // All implementations must embed UnimplementedInstanceServiceServer
 // for forward compatibility.
 type InstanceServiceServer interface {
 	GetInstance(context.Context, *GetInstanceRequest) (*Instance, error)
+	ListInstances(context.Context, *ListInstancesRequest) (*InstanceList, error)
 	CreateInstance(context.Context, *CreateInstanceRequest) (*Instance, error)
 	UpdateStatus(context.Context, *UpdateStatusRequest) (*Instance, error)
+	RenewInstance(context.Context, *RenewInstanceRequest) (*Instance, error)
 	mustEmbedUnimplementedInstanceServiceServer()
 }
 
@@ -91,11 +117,17 @@ type UnimplementedInstanceServiceServer struct{}
 func (UnimplementedInstanceServiceServer) GetInstance(context.Context, *GetInstanceRequest) (*Instance, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInstance not implemented")
 }
+func (UnimplementedInstanceServiceServer) ListInstances(context.Context, *ListInstancesRequest) (*InstanceList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListInstances not implemented")
+}
 func (UnimplementedInstanceServiceServer) CreateInstance(context.Context, *CreateInstanceRequest) (*Instance, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateInstance not implemented")
 }
 func (UnimplementedInstanceServiceServer) UpdateStatus(context.Context, *UpdateStatusRequest) (*Instance, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateStatus not implemented")
+}
+func (UnimplementedInstanceServiceServer) RenewInstance(context.Context, *RenewInstanceRequest) (*Instance, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenewInstance not implemented")
 }
 func (UnimplementedInstanceServiceServer) mustEmbedUnimplementedInstanceServiceServer() {}
 func (UnimplementedInstanceServiceServer) testEmbeddedByValue()                         {}
@@ -136,6 +168,24 @@ func _InstanceService_GetInstance_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InstanceService_ListInstances_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListInstancesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstanceServiceServer).ListInstances(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstanceService_ListInstances_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstanceServiceServer).ListInstances(ctx, req.(*ListInstancesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InstanceService_CreateInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateInstanceRequest)
 	if err := dec(in); err != nil {
@@ -172,6 +222,24 @@ func _InstanceService_UpdateStatus_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InstanceService_RenewInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenewInstanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstanceServiceServer).RenewInstance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstanceService_RenewInstance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstanceServiceServer).RenewInstance(ctx, req.(*RenewInstanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InstanceService_ServiceDesc is the grpc.ServiceDesc for InstanceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -184,12 +252,20 @@ var InstanceService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _InstanceService_GetInstance_Handler,
 		},
 		{
+			MethodName: "ListInstances",
+			Handler:    _InstanceService_ListInstances_Handler,
+		},
+		{
 			MethodName: "CreateInstance",
 			Handler:    _InstanceService_CreateInstance_Handler,
 		},
 		{
 			MethodName: "UpdateStatus",
 			Handler:    _InstanceService_UpdateStatus_Handler,
+		},
+		{
+			MethodName: "RenewInstance",
+			Handler:    _InstanceService_RenewInstance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

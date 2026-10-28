@@ -26,6 +26,9 @@ type Instance struct {
 	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Port          int32                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
+	ExpiresAt     string                 `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	RenewCount    int32                  `protobuf:"varint,6,opt,name=renew_count,json=renewCount,proto3" json:"renew_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,6 +84,27 @@ func (x *Instance) GetStatus() string {
 	return ""
 }
 
+func (x *Instance) GetPort() int32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *Instance) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *Instance) GetRenewCount() int32 {
+	if x != nil {
+		return x.RenewCount
+	}
+	return 0
+}
+
 type GetInstanceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -125,6 +149,86 @@ func (x *GetInstanceRequest) GetId() int32 {
 	return 0
 }
 
+type ListInstancesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListInstancesRequest) Reset() {
+	*x = ListInstancesRequest{}
+	mi := &file_instance_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListInstancesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListInstancesRequest) ProtoMessage() {}
+
+func (x *ListInstancesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListInstancesRequest.ProtoReflect.Descriptor instead.
+func (*ListInstancesRequest) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{2}
+}
+
+type InstanceList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Instances     []*Instance            `protobuf:"bytes,1,rep,name=instances,proto3" json:"instances,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstanceList) Reset() {
+	*x = InstanceList{}
+	mi := &file_instance_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstanceList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstanceList) ProtoMessage() {}
+
+func (x *InstanceList) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstanceList.ProtoReflect.Descriptor instead.
+func (*InstanceList) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *InstanceList) GetInstances() []*Instance {
+	if x != nil {
+		return x.Instances
+	}
+	return nil
+}
+
 type CreateInstanceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -134,7 +238,7 @@ type CreateInstanceRequest struct {
 
 func (x *CreateInstanceRequest) Reset() {
 	*x = CreateInstanceRequest{}
-	mi := &file_instance_proto_msgTypes[2]
+	mi := &file_instance_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +250,7 @@ func (x *CreateInstanceRequest) String() string {
 func (*CreateInstanceRequest) ProtoMessage() {}
 
 func (x *CreateInstanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_instance_proto_msgTypes[2]
+	mi := &file_instance_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +263,7 @@ func (x *CreateInstanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInstanceRequest.ProtoReflect.Descriptor instead.
 func (*CreateInstanceRequest) Descriptor() ([]byte, []int) {
-	return file_instance_proto_rawDescGZIP(), []int{2}
+	return file_instance_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateInstanceRequest) GetName() string {
@@ -179,7 +283,7 @@ type UpdateStatusRequest struct {
 
 func (x *UpdateStatusRequest) Reset() {
 	*x = UpdateStatusRequest{}
-	mi := &file_instance_proto_msgTypes[3]
+	mi := &file_instance_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -191,7 +295,7 @@ func (x *UpdateStatusRequest) String() string {
 func (*UpdateStatusRequest) ProtoMessage() {}
 
 func (x *UpdateStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_instance_proto_msgTypes[3]
+	mi := &file_instance_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -204,7 +308,7 @@ func (x *UpdateStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateStatusRequest) Descriptor() ([]byte, []int) {
-	return file_instance_proto_rawDescGZIP(), []int{3}
+	return file_instance_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateStatusRequest) GetId() int32 {
@@ -221,26 +325,82 @@ func (x *UpdateStatusRequest) GetStatus() string {
 	return ""
 }
 
+type RenewInstanceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenewInstanceRequest) Reset() {
+	*x = RenewInstanceRequest{}
+	mi := &file_instance_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewInstanceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewInstanceRequest) ProtoMessage() {}
+
+func (x *RenewInstanceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewInstanceRequest.ProtoReflect.Descriptor instead.
+func (*RenewInstanceRequest) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RenewInstanceRequest) GetId() int32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
 var File_instance_proto protoreflect.FileDescriptor
 
 const file_instance_proto_rawDesc = "" +
 	"\n" +
-	"\x0einstance.proto\x12\baurelius\"F\n" +
+	"\x0einstance.proto\x12\baurelius\"\x9a\x01\n" +
 	"\bInstance\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"$\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x12\n" +
+	"\x04port\x18\x04 \x01(\x05R\x04port\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\tR\texpiresAt\x12\x1f\n" +
+	"\vrenew_count\x18\x06 \x01(\x05R\n" +
+	"renewCount\"$\n" +
 	"\x12GetInstanceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"+\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"\x16\n" +
+	"\x14ListInstancesRequest\"@\n" +
+	"\fInstanceList\x120\n" +
+	"\tinstances\x18\x01 \x03(\v2\x12.aurelius.InstanceR\tinstances\"+\n" +
 	"\x15CreateInstanceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"=\n" +
 	"\x13UpdateStatusRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status2\xdc\x01\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"&\n" +
+	"\x14RenewInstanceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id2\xea\x02\n" +
 	"\x0fInstanceService\x12?\n" +
-	"\vGetInstance\x12\x1c.aurelius.GetInstanceRequest\x1a\x12.aurelius.Instance\x12E\n" +
+	"\vGetInstance\x12\x1c.aurelius.GetInstanceRequest\x1a\x12.aurelius.Instance\x12G\n" +
+	"\rListInstances\x12\x1e.aurelius.ListInstancesRequest\x1a\x16.aurelius.InstanceList\x12E\n" +
 	"\x0eCreateInstance\x12\x1f.aurelius.CreateInstanceRequest\x1a\x12.aurelius.Instance\x12A\n" +
-	"\fUpdateStatus\x12\x1d.aurelius.UpdateStatusRequest\x1a\x12.aurelius.InstanceB\x10Z\x0emain/proto_genb\x06proto3"
+	"\fUpdateStatus\x12\x1d.aurelius.UpdateStatusRequest\x1a\x12.aurelius.Instance\x12C\n" +
+	"\rRenewInstance\x12\x1e.aurelius.RenewInstanceRequest\x1a\x12.aurelius.InstanceB\x10Z\x0emain/proto_genb\x06proto3"
 
 var (
 	file_instance_proto_rawDescOnce sync.Once
@@ -254,25 +414,33 @@ func file_instance_proto_rawDescGZIP() []byte {
 	return file_instance_proto_rawDescData
 }
 
-var file_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_instance_proto_goTypes = []any{
 	(*Instance)(nil),              // 0: aurelius.Instance
 	(*GetInstanceRequest)(nil),    // 1: aurelius.GetInstanceRequest
-	(*CreateInstanceRequest)(nil), // 2: aurelius.CreateInstanceRequest
-	(*UpdateStatusRequest)(nil),   // 3: aurelius.UpdateStatusRequest
+	(*ListInstancesRequest)(nil),  // 2: aurelius.ListInstancesRequest
+	(*InstanceList)(nil),          // 3: aurelius.InstanceList
+	(*CreateInstanceRequest)(nil), // 4: aurelius.CreateInstanceRequest
+	(*UpdateStatusRequest)(nil),   // 5: aurelius.UpdateStatusRequest
+	(*RenewInstanceRequest)(nil),  // 6: aurelius.RenewInstanceRequest
 }
 var file_instance_proto_depIdxs = []int32{
-	1, // 0: aurelius.InstanceService.GetInstance:input_type -> aurelius.GetInstanceRequest
-	2, // 1: aurelius.InstanceService.CreateInstance:input_type -> aurelius.CreateInstanceRequest
-	3, // 2: aurelius.InstanceService.UpdateStatus:input_type -> aurelius.UpdateStatusRequest
-	0, // 3: aurelius.InstanceService.GetInstance:output_type -> aurelius.Instance
-	0, // 4: aurelius.InstanceService.CreateInstance:output_type -> aurelius.Instance
-	0, // 5: aurelius.InstanceService.UpdateStatus:output_type -> aurelius.Instance
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: aurelius.InstanceList.instances:type_name -> aurelius.Instance
+	1, // 1: aurelius.InstanceService.GetInstance:input_type -> aurelius.GetInstanceRequest
+	2, // 2: aurelius.InstanceService.ListInstances:input_type -> aurelius.ListInstancesRequest
+	4, // 3: aurelius.InstanceService.CreateInstance:input_type -> aurelius.CreateInstanceRequest
+	5, // 4: aurelius.InstanceService.UpdateStatus:input_type -> aurelius.UpdateStatusRequest
+	6, // 5: aurelius.InstanceService.RenewInstance:input_type -> aurelius.RenewInstanceRequest
+	0, // 6: aurelius.InstanceService.GetInstance:output_type -> aurelius.Instance
+	3, // 7: aurelius.InstanceService.ListInstances:output_type -> aurelius.InstanceList
+	0, // 8: aurelius.InstanceService.CreateInstance:output_type -> aurelius.Instance
+	0, // 9: aurelius.InstanceService.UpdateStatus:output_type -> aurelius.Instance
+	0, // 10: aurelius.InstanceService.RenewInstance:output_type -> aurelius.Instance
+	6, // [6:11] is the sub-list for method output_type
+	1, // [1:6] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_instance_proto_init() }
@@ -286,7 +454,7 @@ func file_instance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_instance_proto_rawDesc), len(file_instance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
