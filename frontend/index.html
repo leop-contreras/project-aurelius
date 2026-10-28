@@ -11,6 +11,14 @@
 <h2>Status</h2>
 <pre id="status">loading...</pre>
 
+<h2>Instances</h2>
+<table border="1" cellpadding="4">
+  <thead>
+    <tr><th>id</th><th>name</th><th>status</th><th>link</th><th>expires in</th><th>renews</th><th></th></tr>
+  </thead>
+  <tbody id="instances"></tbody>
+</table>
+
 <h2>Read</h2>
 <input id="getId" type="number" value="1">
 <button onclick="doGet()">Read</button>
@@ -21,7 +29,10 @@
 
 <h2>Update status</h2>
 <input id="updateId" type="number" value="1">
-<input id="updateStatus" type="text" value="active">
+<select id="updateStatus">
+  <option value="inactive">inactive</option>
+  <option value="active">active</option>
+</select>
 <button onclick="doUpdate()">Update</button>
 
 <h2>Response</h2>
@@ -36,8 +47,11 @@ const API = "http://localhost:8000";
 const PATH_GET    = "/instance";
 const PATH_CREATE = "/instance/create";
 const PATH_UPDATE = "/instance/update-status";
+const PATH_LIST   = "/instances";
+const PATH_RENEW  = "/instance/renew";
 
 let worker = [];
+let instances = [];
 
 async function send(method, path, body) {
   try {
@@ -79,6 +93,45 @@ function doUpdate() {
     status: document.getElementById("updateStatus").value
   });
 }
+
+function doRenew(id) {
+  send("PUT", PATH_RENEW, { id: id });
+}
+
+function expiresIn(instance) {
+  if (instance.status !== "active") return "-";
+  const seconds = Math.max(0, Math.round((new Date(instance.expires_at) - Date.now()) / 1000));
+  return Math.floor(seconds / 60) + "m " + (seconds % 60) + "s";
+}
+
+function renderInstances() {
+  document.getElementById("instances").innerHTML = instances.map(function (instance) {
+    const active = instance.status === "active";
+    const url = "http://localhost:" + instance.port;
+    return "<tr>" +
+      "<td>" + instance.id + "</td>" +
+      "<td>" + instance.name + "</td>" +
+      "<td>" + instance.status + "</td>" +
+      "<td>" + (active ? '<a href="' + url + '" target="_blank">' + url + "</a>" : "-") + "</td>" +
+      "<td>" + expiresIn(instance) + "</td>" +
+      "<td>" + instance.renew_count + "/5</td>" +
+      "<td>" + (active ? '<button onclick="doRenew(' + instance.id + ')">Renew</button>' : "") + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
+async function loadInstances() {
+  try {
+    const res = await fetch(API + PATH_LIST);
+    if (res.ok) instances = await res.json();
+  } catch (e) {
+    instances = [];
+  }
+  renderInstances();
+}
+loadInstances();
+setInterval(loadInstances, 2000);
+setInterval(renderInstances, 1000);
 
 async function areYouAlive() {
   try {
