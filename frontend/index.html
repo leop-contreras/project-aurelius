@@ -98,6 +98,10 @@ function doRenew(id) {
   send("PUT", PATH_RENEW, { id: id });
 }
 
+function escapeHTML(text) {
+  return String(text).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+}
+
 function expiresIn(instance) {
   if (instance.status !== "active") return "-";
   const seconds = Math.max(0, Math.round((new Date(instance.expires_at) - Date.now()) / 1000));
@@ -110,7 +114,7 @@ function renderInstances() {
     const url = "http://localhost:" + instance.port;
     return "<tr>" +
       "<td>" + instance.id + "</td>" +
-      "<td>" + instance.name + "</td>" +
+      "<td>" + escapeHTML(instance.name) + "</td>" +
       "<td>" + instance.status + "</td>" +
       "<td>" + (active ? '<a href="' + url + '" target="_blank">' + url + "</a>" : "-") + "</td>" +
       "<td>" + expiresIn(instance) + "</td>" +
