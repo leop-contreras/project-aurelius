@@ -1,12 +1,13 @@
 CREATE TABLE instances (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL
+    status VARCHAR(50) NOT NULL,
+    port INT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    renew_count INT NOT NULL DEFAULT 0
 );
 
-INSERT INTO instances (name, status) VALUES
-('Instance 1', 'active'),
-('Instance 2', 'inactive');
+CREATE UNIQUE INDEX instances_active_port ON instances (port) WHERE status = 'active';
 
 CREATE TABLE instance_history (
     id SERIAL PRIMARY KEY,

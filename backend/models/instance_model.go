@@ -3,12 +3,24 @@ package models
 import (
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/lib/pq"
+)
+
+const (
+	Timeout = 3600
+	MinPort = 10000
+	MaxPort = 10100
 )
 
 type Instance struct {
-	ID     int    `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	Status     string    `json:"status"`
+	Port       int       `json:"port"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	RenewCount int       `json:"renew_count"`
 }
 
 type InstanceModel struct {
@@ -16,14 +28,23 @@ type InstanceModel struct {
 }
 
 var ErrNotFound = errors.New("instance not found")
+var ErrNoPorts = errors.New("no free ports")
+
+const columns = "id, name, status, port, expires_at, renew_count"
+
+func scan(row interface{ Scan(...any) error }) (*Instance, error) {
+	instance := &Instance{}
+	err := row.Scan(&instance.ID, &instance.Name, &instance.Status, &instance.Port, &instance.ExpiresAt, &instance.RenewCount)
+	if err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
 
 func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
-	instance := &Instance{}
-	query := `SELECT id, name, status FROM instances WHERE id = $1`
+	query := "SELECT " + columns + " FROM instances WHERE id = $1"
 
-	row := m.DB.QueryRow(query, id)
-	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
-
+	instance, err := scan(m.DB.QueryRow(query, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -35,29 +56,34 @@ func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 }
 
 func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
-	instance := &Instance{}
-	query := "INSERT INTO instances (name, status) VALUES ($1, 'active') RETURNING id, name, status"
+	query := `INSERT INTO instances (name, status, port, expires_at)
+		SELECT $1, 'active', p, now() + make_interval(secs => $2)
+		FROM generate_series($3::int, $4::int) AS p
+		WHERE p NOT IN (SELECT port FROM instances WHERE status = 'active')
+		ORDER BY p LIMIT 1
+		RETURNING ` + columns
 
-	row := m.DB.QueryRow(query, name)
-	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
+	var err error
+	for attempt := 1; attempt <= 3; attempt++ {
+		var instance *Instance
+		instance, err = scan(m.DB.QueryRow(query, name, Timeout, MinPort, MaxPort))
+		if err == nil {
+			return instance, nil
+		}
 
-	if err != nil {
-		return nil, err
+		var pqErr *pq.Error
+		if !errors.As(err, &pqErr) || pqErr.Code != "23505" {
+			break
+		}
 	}
 
-	return instance, nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNoPorts
+	}
+	return nil, err
 }
 
 func (m *InstanceModel) UpdateStatus(id int, status string) (*Instance, error) {
-	instance := &Instance{}
-	query := "UPDATE instances SET status = $1 WHERE id = $2 RETURNING id, name, status"
-
-	row := m.DB.QueryRow(query, status, id)
-	err := row.Scan(&instance.ID, &instance.Name, &instance.Status)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return instance, nil
+	query := "UPDATE instances SET status = $1 WHERE id = $2 RETURNING " + columns
+	return scan(m.DB.QueryRow(query, status, id))
 }

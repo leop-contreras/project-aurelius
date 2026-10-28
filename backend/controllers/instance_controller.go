@@ -42,9 +42,12 @@ type UpdateController struct {
 
 func toProto(instance *models.Instance) *proto_gen.Instance {
 	return &proto_gen.Instance{
-		Id:     int32(instance.ID),
-		Name:   instance.Name,
-		Status: instance.Status,
+		Id:         int32(instance.ID),
+		Name:       instance.Name,
+		Status:     instance.Status,
+		Port:       int32(instance.Port),
+		ExpiresAt:  instance.ExpiresAt.UTC().Format(time.RFC3339),
+		RenewCount: int32(instance.RenewCount),
 	}
 }
 
@@ -80,6 +83,9 @@ func (c *ReadController) GetInstance(ctx context.Context, req *proto_gen.GetInst
 func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.CreateInstanceRequest) (*proto_gen.Instance, error) {
 	instance, err := c.InstanceModel.CreateInstance(req.Name)
 	if err != nil {
+		if errors.Is(err, models.ErrNoPorts) {
+			return nil, status.Error(codes.ResourceExhausted, "No free ports")
+		}
 		return nil, status.Error(codes.Internal, "Failed to create instance")
 	}
 

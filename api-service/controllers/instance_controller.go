@@ -17,17 +17,28 @@ type InstanceController struct {
 }
 
 type instance struct {
-	ID     int32  `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID         int32  `json:"id"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Port       int32  `json:"port"`
+	ExpiresAt  string `json:"expires_at"`
+	RenewCount int32  `json:"renew_count"`
 }
 
-func writeInstance(w http.ResponseWriter, header metadata.MD, in *proto_gen.Instance) {
+func toJSON(in *proto_gen.Instance) instance {
+	return instance{ID: in.Id, Name: in.Name, Status: in.Status, Port: in.Port, ExpiresAt: in.ExpiresAt, RenewCount: in.RenewCount}
+}
+
+func writeJSON(w http.ResponseWriter, header metadata.MD, body any) {
 	if workerID := header.Get("x-worker-id"); len(workerID) > 0 {
 		w.Header().Set("X-Worker-ID", workerID[0])
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance{ID: in.Id, Name: in.Name, Status: in.Status})
+	json.NewEncoder(w).Encode(body)
+}
+
+func writeInstance(w http.ResponseWriter, header metadata.MD, in *proto_gen.Instance) {
+	writeJSON(w, header, toJSON(in))
 }
 
 func writeError(w http.ResponseWriter, err error) {
