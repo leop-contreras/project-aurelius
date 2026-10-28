@@ -55,6 +55,12 @@ func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 	return instance, nil
 }
 
+func (m *InstanceModel) CountActive() (int, error) {
+	var count int
+	err := m.DB.QueryRow("SELECT count(*) FROM instances WHERE status = 'active'").Scan(&count)
+	return count, err
+}
+
 func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
 	query := `INSERT INTO instances (name, status, port, expires_at)
 		SELECT $1, 'active', p, now() + make_interval(secs => $2)
@@ -81,6 +87,11 @@ func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
 		return nil, ErrNoPorts
 	}
 	return nil, err
+}
+
+func (m *InstanceModel) DeleteInstance(id int) error {
+	_, err := m.DB.Exec("DELETE FROM instances WHERE id = $1", id)
+	return err
 }
 
 func (m *InstanceModel) UpdateStatus(id int, status string) (*Instance, error) {

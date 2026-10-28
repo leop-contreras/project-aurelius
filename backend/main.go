@@ -7,10 +7,12 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"main/controllers"
+	"main/dockerx"
 	"main/events"
 	"main/kafkax"
 	"main/models"
@@ -88,6 +90,7 @@ func main() {
 	}
 
 	instanceModel := &models.InstanceModel{DB: db}
+	dockerClient := dockerx.NewClient(os.Getenv("DOCKER_SOCKET"))
 
 	log.Printf("Starting worker %v", debugWorkerID)
 
@@ -99,10 +102,16 @@ func main() {
 	case "get":
 		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.ReadController{InstanceModel: instanceModel})
 	case "post":
+		maxContainers, err := strconv.Atoi(os.Getenv("MAX_CONTAINERS"))
+		if err != nil {
+			log.Fatalf("Invalid max containers: %v", err)
+		}
 		writer := kafkax.NewWriter([]string{os.Getenv("KAFKA_BROKER")}, events.TopicInstanceCreated)
 		defer writer.Close()
 		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.WriteController{
 			InstanceModel: instanceModel,
+			Docker:        dockerClient,
+			MaxContainers: maxContainers,
 			Events:        writer,
 		})
 	case "put":
@@ -113,11 +122,13 @@ func main() {
 		defer conn.Close()
 		writer := kafkax.NewWriter([]string{os.Getenv("KAFKA_BROKER")}, events.TopicInstanceStatusUpdated)
 		defer writer.Close()
-		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.UpdateController{
+		updateController := &controllers.UpdateController{
 			InstanceModel: instanceModel,
+			Docker:        dockerClient,
 			ReadClient:    proto_gen.NewInstanceServiceClient(conn),
 			Events:        writer,
-		})
+		}
+		proto_gen.RegisterInstanceServiceServer(grpcServer, updateController)
 	default:
 		log.Fatalf("Unknown role: %s", role)
 	}

@@ -119,9 +119,13 @@ services:
       CONSUL_HTTP_ADDR: consul:8500
       GATEWAY_GRPC_ADDR: nginx-gateway:9000
       KAFKA_BROKER: kafka:9092
+      DOCKER_SOCKET: /var/run/docker.sock
+      MAX_CONTAINERS: 5
       INSTANCE_ID: backend-get-1
       ROLE: get
       DEBUG_WORKER_ID: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db:
         condition: service_healthy
