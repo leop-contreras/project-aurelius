@@ -115,7 +115,15 @@ func (c *Client) RunContainer(id int, name string, port int) error {
 }
 
 func (c *Client) RemoveContainer(id int) error {
-	code, data, err := c.do("DELETE", "/containers/"+ContainerName(id)+"?force=true", nil)
+	code, data, err := c.do("POST", "/containers/"+ContainerName(id)+"/stop?t=5", nil)
+	if err != nil {
+		return err
+	}
+	if code != http.StatusNoContent && code != http.StatusNotModified && code != http.StatusNotFound {
+		return fmt.Errorf("stop %s: %d %s", ContainerName(id), code, data)
+	}
+
+	code, data, err = c.do("DELETE", "/containers/"+ContainerName(id)+"?force=true", nil)
 	if err != nil {
 		return err
 	}
