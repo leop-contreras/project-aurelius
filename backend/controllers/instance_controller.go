@@ -84,6 +84,21 @@ func (c *ReadController) GetInstance(ctx context.Context, req *proto_gen.GetInst
 	return toProto(instance), nil
 }
 
+func (c *ReadController) ListInstances(ctx context.Context, req *proto_gen.ListInstancesRequest) (*proto_gen.InstanceList, error) {
+	instances, err := c.InstanceModel.ListInstances()
+	if err != nil {
+		return nil, status.Error(codes.Internal, "Failed to list instances")
+	}
+
+	list := &proto_gen.InstanceList{}
+	for _, instance := range instances {
+		list.Instances = append(list.Instances, toProto(instance))
+	}
+
+	setWorkerID(ctx)
+	return list, nil
+}
+
 func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.CreateInstanceRequest) (*proto_gen.Instance, error) {
 	active, err := c.InstanceModel.CountActive()
 	if err != nil {
@@ -122,18 +137,26 @@ func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.Cre
 	return toProto(instance), nil
 }
 
+func (c *UpdateController) checkInstance(ctx context.Context, id int32) (*proto_gen.Instance, error) {
+	var header metadata.MD
+	current, err := c.ReadClient.GetInstance(ctx, &proto_gen.GetInstanceRequest{Id: id}, grpc.Header(&header))
+	if err != nil {
+		log.Printf("Read service check for instance %d failed: %v", id, err)
+		return nil, err
+	}
+	log.Printf("Instance %d exists, checked by read worker %v", id, header.Get("x-worker-id"))
+	return current, nil
+}
+
 func (c *UpdateController) UpdateStatus(ctx context.Context, req *proto_gen.UpdateStatusRequest) (*proto_gen.Instance, error) {
 	if req.Status != "active" && req.Status != "inactive" {
 		return nil, status.Error(codes.InvalidArgument, "Invalid status")
 	}
 
-	var header metadata.MD
-	current, err := c.ReadClient.GetInstance(ctx, &proto_gen.GetInstanceRequest{Id: req.Id}, grpc.Header(&header))
+	current, err := c.checkInstance(ctx, req.Id)
 	if err != nil {
-		log.Printf("Read service check for instance %d failed: %v", req.Id, err)
 		return nil, err
 	}
-	log.Printf("Instance %d exists, checked by read worker %v", req.Id, header.Get("x-worker-id"))
 
 	if current.Status == req.Status {
 		setWorkerID(ctx)
@@ -155,6 +178,31 @@ func (c *UpdateController) UpdateStatus(ctx context.Context, req *proto_gen.Upda
 	log.Printf("Instance %d inactive, container removed", instance.ID)
 
 	publishEvent(c.Events, events.TopicInstanceStatusUpdated, instance)
+	setWorkerID(ctx)
+	return toProto(instance), nil
+}
+
+func (c *UpdateController) RenewInstance(ctx context.Context, req *proto_gen.RenewInstanceRequest) (*proto_gen.Instance, error) {
+	current, err := c.checkInstance(ctx, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if current.Status != "active" {
+		return nil, status.Error(codes.FailedPrecondition, "Inactive instances cannot be renewed")
+	}
+	if current.RenewCount >= models.MaxRenews {
+		return nil, status.Error(codes.FailedPrecondition, "Max renewal count exceeded")
+	}
+
+	instance, err := c.InstanceModel.RenewInstance(int(req.Id))
+	if err != nil {
+		if errors.Is(err, models.ErrCannotRenew) {
+			return nil, status.Error(codes.FailedPrecondition, "Instance cannot be renewed")
+		}
+		return nil, status.Error(codes.Internal, "Failed to renew instance")
+	}
+
 	setWorkerID(ctx)
 	return toProto(instance), nil
 }

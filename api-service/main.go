@@ -22,8 +22,10 @@ func main() {
 	instanceController := &controllers.InstanceController{Client: proto_gen.NewInstanceServiceClient(conn)}
 
 	http.HandleFunc("GET /instance", instanceController.GetInstanceHandler)
+	http.HandleFunc("GET /instances", instanceController.ListInstancesHandler)
 	http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
 	http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
+	http.HandleFunc("PUT /instance/renew", instanceController.RenewInstanceHandler)
 
 	log.Println("Server is running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

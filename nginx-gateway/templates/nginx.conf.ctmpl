@@ -75,11 +75,19 @@ http {
             grpc_pass grpc://get_pool;
         }
 
+        location /aurelius.InstanceService/ListInstances {
+            grpc_pass grpc://get_pool;
+        }
+
         location /aurelius.InstanceService/CreateInstance {
             grpc_pass grpc://post_pool;
         }
 
         location /aurelius.InstanceService/UpdateStatus {
+            grpc_pass grpc://put_pool;
+        }
+
+        location /aurelius.InstanceService/RenewInstance {
             grpc_pass grpc://put_pool;
         }
     }

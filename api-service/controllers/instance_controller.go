@@ -118,3 +118,39 @@ func (c *InstanceController) UpdateStatusHandler(w http.ResponseWriter, r *http.
 
 	writeInstance(w, header, instance)
 }
+
+func (c *InstanceController) ListInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	var header metadata.MD
+	list, err := c.Client.ListInstances(r.Context(), &proto_gen.ListInstancesRequest{}, grpc.Header(&header))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	instances := []instance{}
+	for _, in := range list.Instances {
+		instances = append(instances, toJSON(in))
+	}
+
+	writeJSON(w, header, instances)
+}
+
+func (c *InstanceController) RenewInstanceHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		ID int32 `json:"id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var header metadata.MD
+	instance, err := c.Client.RenewInstance(r.Context(), &proto_gen.RenewInstanceRequest{Id: input.ID}, grpc.Header(&header))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeInstance(w, header, instance)
+}

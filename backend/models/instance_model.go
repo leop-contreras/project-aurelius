@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	Timeout = 3600
-	MinPort = 10000
-	MaxPort = 10100
+	Timeout   = 3600
+	MaxRenews = 5
+	MinPort   = 10000
+	MaxPort   = 10100
 )
 
 type Instance struct {
@@ -29,6 +30,7 @@ type InstanceModel struct {
 
 var ErrNotFound = errors.New("instance not found")
 var ErrNoPorts = errors.New("no free ports")
+var ErrCannotRenew = errors.New("instance cannot be renewed")
 
 const columns = "id, name, status, port, expires_at, renew_count"
 
@@ -53,6 +55,25 @@ func (m *InstanceModel) GetInstanceByID(id int) (*Instance, error) {
 	}
 
 	return instance, nil
+}
+
+func (m *InstanceModel) ListInstances() ([]*Instance, error) {
+	rows, err := m.DB.Query("SELECT " + columns + " FROM instances ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	instances := []*Instance{}
+	for rows.Next() {
+		instance, err := scan(rows)
+		if err != nil {
+			return nil, err
+		}
+		instances = append(instances, instance)
+	}
+
+	return instances, rows.Err()
 }
 
 func (m *InstanceModel) CountActive() (int, error) {
@@ -97,4 +118,16 @@ func (m *InstanceModel) DeleteInstance(id int) error {
 func (m *InstanceModel) UpdateStatus(id int, status string) (*Instance, error) {
 	query := "UPDATE instances SET status = $1 WHERE id = $2 RETURNING " + columns
 	return scan(m.DB.QueryRow(query, status, id))
+}
+
+func (m *InstanceModel) RenewInstance(id int) (*Instance, error) {
+	query := `UPDATE instances SET expires_at = now() + make_interval(secs => $2), renew_count = renew_count + 1
+		WHERE id = $1 AND status = 'active' AND renew_count < $3
+		RETURNING ` + columns
+
+	instance, err := scan(m.DB.QueryRow(query, id, Timeout, MaxRenews))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCannotRenew
+	}
+	return instance, err
 }
