@@ -10,6 +10,15 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
+echo "Removing old instances..."
+instances=$(docker ps -aq --filter label=aurelius.instance)
+if [ -n "$instances" ]; then
+  docker rm -f $instances
+fi
+
+echo "Pulling instance image..."
+docker pull hashicorp/http-echo:latest
+
 echo "Building and starting containers..."
 docker compose up -d --build
 
@@ -23,7 +32,7 @@ echo ""
 
 echo ""
 echo "Testing endpoints..."
-curl -s "http://localhost:8000/instance?id=1"
+curl -s "http://localhost:8000/instances"
 echo ""
 
 echo ""
