@@ -134,7 +134,7 @@ function renderModal() {
       row("Remaining time", '<span data-expires="' + escapeHTML(instance.expires_at) + '"></span>') +
       row("Renews", instance.renew_count + "/5") +
       "</div>" +
-      '<div class="flex flex-col sm:flex-row gap-2 pt-4">' +
+      '<div class="flex flex-col gap-2 pt-4">' +
       button(busy === "renew" ? "Renewing..." : "Renew this instance", "refresh-cw", "renew(" + instance.id + ")", false) +
       button(busy === "destroy" ? "Destroying..." : "Destroy this instance", "trash-2", "destroy(" + instance.id + ")", true) +
       "</div>";
