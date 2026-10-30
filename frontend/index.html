@@ -1,152 +1,223 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Frontend</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Challenges</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
+<script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+<style type="text/tailwindcss">
+@theme {
+  --color-primary: #1AA734;
+  --color-accent: #FFB020;
+  --color-success: #00F58B;
+  --color-danger: #F0544F;
+  --color-text-primary: #EDEDED;
+  --color-text-secondary: #A9A9A9;
+  --color-text-faded: rgba(237, 237, 237, 0.8);
+  --color-dark-background: #090909;
+  --color-dark-sidebar: #131313;
+  --color-dark-cards: #1D1D1D;
+  --color-dark-hover: #282828;
+  --color-dark-outline: #3C3C3C;
+  --font-chakra: "Chakra Petch", sans-serif;
+  --font-mono: "Spline Sans Mono", monospace;
+  --text-huge: clamp(1.5120rem, 1.3807em + 0.6566cqi, 1.7090rem);
+  --text-huge--font-weight: 700;
+  --text-headline: clamp(1.2600rem, 1.1885em + 0.3573cqi, 1.3672rem);
+  --text-headline--font-weight: 600;
+  --text-important: clamp(1.0500rem, 1.0208em + 0.1458cqi, 1.0938rem);
+  --text-important--font-weight: 500;
+  --text-navbar: 0.875rem;
+  --text-navbar--font-weight: 500;
+  --text-body: 0.875rem;
+  --text-small: 0.7rem;
+}
+html { color-scheme: dark; }
+.icon-em { width: 1em; height: 1em; flex-shrink: 0; }
+</style>
 </head>
-<body>
+<body class="min-h-screen bg-dark-background text-text-primary font-mono">
 
-<h1>Control panel</h1>
+<nav class="sticky top-0 z-40 bg-dark-sidebar border-b border-dark-outline">
+  <div class="max-w-6xl mx-auto px-4 flex gap-6">
+    <a href="/" class="flex items-center gap-2 py-4 text-navbar border-b-2 border-primary text-primary">
+      <i data-lucide="flag" class="icon-em"></i>Challenges
+    </a>
+    <a href="/admin.html" class="flex items-center gap-2 py-4 text-navbar border-b-2 border-transparent text-text-secondary hover:text-text-primary transition-colors">
+      <i data-lucide="shield" class="icon-em"></i>Admin
+    </a>
+  </div>
+</nav>
 
-<h2>Status</h2>
-<pre id="status">loading...</pre>
+<main class="@container max-w-6xl mx-auto px-4 py-8 flex flex-col gap-6">
+  <h1 class="font-chakra text-huge">Challenges</h1>
+  <p id="challengesError" class="text-body text-danger" hidden>Could not load the challenges.</p>
+  <div id="challenges" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+</main>
 
-<h2>Instances</h2>
-<table border="1" cellpadding="4">
-  <thead>
-    <tr><th>id</th><th>name</th><th>status</th><th>link</th><th>expires in</th><th>renews</th><th></th></tr>
-  </thead>
-  <tbody id="instances"></tbody>
-</table>
+<div id="modal" class="fixed inset-0 z-50 bg-dark-background/80 flex items-center justify-center p-4" hidden>
+  <div class="@container w-full max-w-116 max-h-full overflow-y-auto bg-dark-cards border border-dark-outline rounded p-5 flex flex-col gap-4">
+    <div class="flex items-start justify-between gap-4">
+      <h2 id="modalName" class="font-chakra text-headline"></h2>
+      <button onclick="closeModal()" aria-label="Close" class="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-dark-hover transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <hr class="border-dark-outline">
+    <p id="modalDescription" class="text-body text-text-secondary"></p>
+    <div id="modalInstance"></div>
+    <pre id="modalError" class="whitespace-pre-wrap break-words max-h-40 overflow-auto p-2 rounded border border-danger text-small text-danger" hidden></pre>
+  </div>
+</div>
 
-<h2>Read</h2>
-<input id="getId" type="number" value="1">
-<button onclick="doGet()">Read</button>
-
-<h2>Create</h2>
-<input id="newName" type="text" value="instance1">
-<button onclick="doCreate()">Create</button>
-
-<h2>Update status</h2>
-<input id="updateId" type="number" value="1">
-<select id="updateStatus">
-  <option value="inactive">inactive</option>
-  <option value="active">active</option>
-</select>
-<button onclick="doUpdate()">Update</button>
-
-<h2>Response</h2>
-<pre id="output">-</pre>
-
-<h2>Workers that answered</h2>
-<pre id="workers">-</pre>
-
+<script src="app.js"></script>
 <script>
-const API = "http://localhost:8000";
-
-const PATH_GET    = "/instance";
-const PATH_CREATE = "/instance/create";
-const PATH_UPDATE = "/instance/update-status";
-const PATH_LIST   = "/instances";
-const PATH_RENEW  = "/instance/renew";
-
-let worker = [];
+let challenges = [];
 let instances = [];
+let openId = null;
+let busy = "";
+let lastCards = "";
+let lastModal = "";
 
-async function send(method, path, body) {
-  try {
-    const opts = { method: method };
-    if (body) {
-      opts.headers = { "Content-Type": "application/json" };
-      opts.body = JSON.stringify(body);
-    }
-    const res = await fetch(API + path, opts);
-    const workerId  = res.headers.get("X-Worker-ID");
-    const text = await res.text();
-
-    worker.push(workerId  || "?");
-    if (worker.length > 20) worker.shift();
-    document.getElementById("workers").textContent = worker.join("  ");
-
-    document.getElementById("output").textContent =
-      method + " " + path + "\n" +
-      "status: " + res.status + "\n" +
-      "worker: " + (workerId || "NOT EXPOSED") + "\n\n" + text;
-  } catch (e) {
-    worker.push("ERR");
-    document.getElementById("workers").textContent = worker.join("  ");
-    document.getElementById("output").textContent = "FAILED: " + e;
-  }
-}
-
-function doGet() {
-  send("GET", PATH_GET + "?id=" + document.getElementById("getId").value);
-}
-
-function doCreate() {
-  send("POST", PATH_CREATE, { name: document.getElementById("newName").value });
-}
-
-function doUpdate() {
-  send("PUT", PATH_UPDATE, {
-    id: Number(document.getElementById("updateId").value),
-    status: document.getElementById("updateStatus").value
+function activeInstance(challengeId) {
+  return instances.find(function (instance) {
+    return instance.challenge_id === challengeId && instance.status === "active";
   });
 }
 
-function doRenew(id) {
-  send("PUT", PATH_RENEW, { id: id });
-}
-
-function escapeHTML(text) {
-  return String(text).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
-}
-
-function expiresIn(instance) {
-  if (instance.status !== "active") return "-";
-  const seconds = Math.max(0, Math.round((new Date(instance.expires_at) - Date.now()) / 1000));
-  return Math.floor(seconds / 60) + "m " + (seconds % 60) + "s";
-}
-
-function renderInstances() {
-  document.getElementById("instances").innerHTML = instances.map(function (instance) {
-    const active = instance.status === "active";
-    const url = "http://localhost:" + instance.port;
-    return "<tr>" +
-      "<td>" + instance.id + "</td>" +
-      "<td>" + escapeHTML(instance.name) + "</td>" +
-      "<td>" + instance.status + "</td>" +
-      "<td>" + (active ? '<a href="' + url + '" target="_blank">' + url + "</a>" : "-") + "</td>" +
-      "<td>" + expiresIn(instance) + "</td>" +
-      "<td>" + instance.renew_count + "/5</td>" +
-      "<td>" + (active ? '<button onclick="doRenew(' + instance.id + ')">Renew</button>' : "") + "</td>" +
-      "</tr>";
+function renderCards() {
+  const html = challenges.map(function (challenge) {
+    return '<button onclick="openChallenge(' + challenge.id + ')" class="group h-28 p-4 rounded border border-dark-outline bg-dark-cards hover:bg-dark-hover hover:border-primary transition-colors flex flex-col justify-between text-left cursor-pointer">' +
+      '<span class="text-important text-text-primary">' + escapeHTML(challenge.name) + "</span>" +
+      '<span class="flex items-center gap-1 text-small text-text-faded group-hover:text-primary transition-colors">Open<i data-lucide="chevron-right" class="icon-em transition-transform group-hover:translate-x-1"></i></span>' +
+      "</button>";
   }).join("");
+
+  if (html === lastCards) return;
+  lastCards = html;
+  document.getElementById("challenges").innerHTML = html;
+  drawIcons();
+}
+
+function row(label, value) {
+  return '<div class="flex items-center justify-between gap-4 py-2 border-b border-dark-outline/60">' +
+    '<span class="text-body text-text-secondary">' + label + "</span>" +
+    '<span class="text-body text-text-primary text-right break-all">' + value + "</span></div>";
+}
+
+function button(label, icon, onclick, danger) {
+  const tone = danger
+    ? "border-danger text-danger hover:bg-danger hover:text-text-primary"
+    : "border-primary text-primary hover:bg-primary hover:text-text-primary";
+  return '<button onclick="' + onclick + '"' + (busy ? " disabled" : "") +
+    ' class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded border text-body transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ' + tone + '">' +
+    '<i data-lucide="' + icon + '" class="icon-em"></i>' + label + "</button>";
+}
+
+function renderModal() {
+  if (openId === null) return;
+  const instance = activeInstance(openId);
+
+  let html = '<p class="text-small uppercase text-text-faded mb-1">Instance info</p>';
+  if (!instance) {
+    html += '<p class="text-body text-text-secondary py-2">No instance running.</p>' +
+      '<div class="flex pt-2">' + button(busy === "launch" ? "Launching..." : "Launch an instance", "rocket", "launch()", false) + "</div>";
+  } else {
+    const url = "http://localhost:" + instance.port;
+    html += '<div class="flex flex-col">' +
+      row("ID", instance.id) +
+      row("Link", '<a href="' + url + '" target="_blank" class="text-primary hover:underline">' + url + "</a>") +
+      row("Port", instance.port) +
+      row("Remaining time", '<span data-expires="' + escapeHTML(instance.expires_at) + '"></span>') +
+      row("Renews", instance.renew_count + "/5") +
+      "</div>" +
+      '<div class="flex flex-col sm:flex-row gap-2 pt-4">' +
+      button(busy === "renew" ? "Renewing..." : "Renew this instance", "refresh-cw", "renew(" + instance.id + ")", false) +
+      button(busy === "destroy" ? "Destroying..." : "Destroy this instance", "trash-2", "destroy(" + instance.id + ")", true) +
+      "</div>";
+  }
+
+  if (html === lastModal) return;
+  lastModal = html;
+  document.getElementById("modalInstance").innerHTML = html;
+  drawIcons();
+  tick();
+}
+
+function showError(result) {
+  const box = document.getElementById("modalError");
+  box.textContent = result.ok ? "" : result.status + "\n" + result.text;
+  box.hidden = result.ok;
+}
+
+function openChallenge(id) {
+  const challenge = challenges.find(function (c) { return c.id === id; });
+  openId = id;
+  lastModal = "";
+  document.getElementById("modalName").textContent = challenge.name;
+  document.getElementById("modalDescription").textContent = challenge.description;
+  document.getElementById("modalError").hidden = true;
+  document.getElementById("modal").hidden = false;
+  renderModal();
+}
+
+function closeModal() {
+  openId = null;
+  document.getElementById("modal").hidden = true;
+}
+
+async function action(name, method, path, body) {
+  busy = name;
+  renderModal();
+  const result = await send(method, path, body);
+  showError(result);
+  await loadInstances();
+  busy = "";
+  renderModal();
+}
+
+function launch() {
+  action("launch", "POST", PATH_CREATE, { challenge_id: openId });
+}
+
+function renew(id) {
+  action("renew", "PUT", PATH_RENEW, { id: id });
+}
+
+function destroy(id) {
+  action("destroy", "PUT", PATH_UPDATE, { id: id, status: "inactive" });
+}
+
+async function loadChallenges() {
+  const list = await load(PATH_CHALLENGES);
+  if (list) challenges = list;
+  document.getElementById("challengesError").hidden = challenges.length > 0;
+  renderCards();
 }
 
 async function loadInstances() {
-  try {
-    const res = await fetch(API + PATH_LIST);
-    if (res.ok) instances = await res.json();
-  } catch (e) {
-    instances = [];
-  }
-  renderInstances();
+  const list = await load(PATH_LIST);
+  if (list) instances = list;
+  renderModal();
 }
-loadInstances();
-setInterval(loadInstances, 2000);
-setInterval(renderInstances, 1000);
 
-async function areYouAlive() {
-  try {
-    const res = await fetch(API + "/status");
-    document.getElementById("status").textContent = await res.text();
-  } catch (e) {
-    document.getElementById("status").textContent = "middleware unreachable";
-  }
-}
-areYouAlive();
-setInterval(areYouAlive, 2000);
+document.getElementById("modal").addEventListener("mousedown", function (e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") closeModal();
+});
+
+drawIcons();
+loadChallenges();
+loadInstances();
+setInterval(function () {
+  if (challenges.length === 0) loadChallenges();
+  loadInstances();
+}, 2000);
 </script>
 
 </body>
