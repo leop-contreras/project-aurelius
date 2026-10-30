@@ -25,7 +25,8 @@ var debugWorkerID = os.Getenv("DEBUG_WORKER_ID")
 
 type ReadController struct {
 	proto_gen.UnimplementedInstanceServiceServer
-	InstanceModel *models.InstanceModel
+	InstanceModel  *models.InstanceModel
+	ChallengeModel *models.ChallengeModel
 }
 
 type WriteController struct {

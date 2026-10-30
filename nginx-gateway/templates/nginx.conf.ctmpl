@@ -90,5 +90,9 @@ http {
         location /aurelius.InstanceService/RenewInstance {
             grpc_pass grpc://put_pool;
         }
+
+        location /aurelius.InstanceService/ListChallenges {
+            grpc_pass grpc://get_pool;
+        }
     }
 }

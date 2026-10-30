@@ -369,6 +369,146 @@ func (x *RenewInstanceRequest) GetId() int32 {
 	return 0
 }
 
+type Challenge struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Challenge) Reset() {
+	*x = Challenge{}
+	mi := &file_instance_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Challenge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Challenge) ProtoMessage() {}
+
+func (x *Challenge) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Challenge.ProtoReflect.Descriptor instead.
+func (*Challenge) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Challenge) GetId() int32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Challenge) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Challenge) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type ListChallengesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChallengesRequest) Reset() {
+	*x = ListChallengesRequest{}
+	mi := &file_instance_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChallengesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChallengesRequest) ProtoMessage() {}
+
+func (x *ListChallengesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChallengesRequest.ProtoReflect.Descriptor instead.
+func (*ListChallengesRequest) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{8}
+}
+
+type ChallengeList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Challenges    []*Challenge           `protobuf:"bytes,1,rep,name=challenges,proto3" json:"challenges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChallengeList) Reset() {
+	*x = ChallengeList{}
+	mi := &file_instance_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChallengeList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChallengeList) ProtoMessage() {}
+
+func (x *ChallengeList) ProtoReflect() protoreflect.Message {
+	mi := &file_instance_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChallengeList.ProtoReflect.Descriptor instead.
+func (*ChallengeList) Descriptor() ([]byte, []int) {
+	return file_instance_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ChallengeList) GetChallenges() []*Challenge {
+	if x != nil {
+		return x.Challenges
+	}
+	return nil
+}
+
 var File_instance_proto protoreflect.FileDescriptor
 
 const file_instance_proto_rawDesc = "" +
@@ -394,13 +534,23 @@ const file_instance_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"&\n" +
 	"\x14RenewInstanceRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id2\xea\x02\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"Q\n" +
+	"\tChallenge\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"\x17\n" +
+	"\x15ListChallengesRequest\"D\n" +
+	"\rChallengeList\x123\n" +
+	"\n" +
+	"challenges\x18\x01 \x03(\v2\x13.aurelius.ChallengeR\n" +
+	"challenges2\xb6\x03\n" +
 	"\x0fInstanceService\x12?\n" +
 	"\vGetInstance\x12\x1c.aurelius.GetInstanceRequest\x1a\x12.aurelius.Instance\x12G\n" +
 	"\rListInstances\x12\x1e.aurelius.ListInstancesRequest\x1a\x16.aurelius.InstanceList\x12E\n" +
 	"\x0eCreateInstance\x12\x1f.aurelius.CreateInstanceRequest\x1a\x12.aurelius.Instance\x12A\n" +
 	"\fUpdateStatus\x12\x1d.aurelius.UpdateStatusRequest\x1a\x12.aurelius.Instance\x12C\n" +
-	"\rRenewInstance\x12\x1e.aurelius.RenewInstanceRequest\x1a\x12.aurelius.InstanceB\x10Z\x0emain/proto_genb\x06proto3"
+	"\rRenewInstance\x12\x1e.aurelius.RenewInstanceRequest\x1a\x12.aurelius.Instance\x12J\n" +
+	"\x0eListChallenges\x12\x1f.aurelius.ListChallengesRequest\x1a\x17.aurelius.ChallengeListB\x10Z\x0emain/proto_genb\x06proto3"
 
 var (
 	file_instance_proto_rawDescOnce sync.Once
@@ -414,7 +564,7 @@ func file_instance_proto_rawDescGZIP() []byte {
 	return file_instance_proto_rawDescData
 }
 
-var file_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_instance_proto_goTypes = []any{
 	(*Instance)(nil),              // 0: aurelius.Instance
 	(*GetInstanceRequest)(nil),    // 1: aurelius.GetInstanceRequest
@@ -423,24 +573,30 @@ var file_instance_proto_goTypes = []any{
 	(*CreateInstanceRequest)(nil), // 4: aurelius.CreateInstanceRequest
 	(*UpdateStatusRequest)(nil),   // 5: aurelius.UpdateStatusRequest
 	(*RenewInstanceRequest)(nil),  // 6: aurelius.RenewInstanceRequest
+	(*Challenge)(nil),             // 7: aurelius.Challenge
+	(*ListChallengesRequest)(nil), // 8: aurelius.ListChallengesRequest
+	(*ChallengeList)(nil),         // 9: aurelius.ChallengeList
 }
 var file_instance_proto_depIdxs = []int32{
 	0, // 0: aurelius.InstanceList.instances:type_name -> aurelius.Instance
-	1, // 1: aurelius.InstanceService.GetInstance:input_type -> aurelius.GetInstanceRequest
-	2, // 2: aurelius.InstanceService.ListInstances:input_type -> aurelius.ListInstancesRequest
-	4, // 3: aurelius.InstanceService.CreateInstance:input_type -> aurelius.CreateInstanceRequest
-	5, // 4: aurelius.InstanceService.UpdateStatus:input_type -> aurelius.UpdateStatusRequest
-	6, // 5: aurelius.InstanceService.RenewInstance:input_type -> aurelius.RenewInstanceRequest
-	0, // 6: aurelius.InstanceService.GetInstance:output_type -> aurelius.Instance
-	3, // 7: aurelius.InstanceService.ListInstances:output_type -> aurelius.InstanceList
-	0, // 8: aurelius.InstanceService.CreateInstance:output_type -> aurelius.Instance
-	0, // 9: aurelius.InstanceService.UpdateStatus:output_type -> aurelius.Instance
-	0, // 10: aurelius.InstanceService.RenewInstance:output_type -> aurelius.Instance
-	6, // [6:11] is the sub-list for method output_type
-	1, // [1:6] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7, // 1: aurelius.ChallengeList.challenges:type_name -> aurelius.Challenge
+	1, // 2: aurelius.InstanceService.GetInstance:input_type -> aurelius.GetInstanceRequest
+	2, // 3: aurelius.InstanceService.ListInstances:input_type -> aurelius.ListInstancesRequest
+	4, // 4: aurelius.InstanceService.CreateInstance:input_type -> aurelius.CreateInstanceRequest
+	5, // 5: aurelius.InstanceService.UpdateStatus:input_type -> aurelius.UpdateStatusRequest
+	6, // 6: aurelius.InstanceService.RenewInstance:input_type -> aurelius.RenewInstanceRequest
+	8, // 7: aurelius.InstanceService.ListChallenges:input_type -> aurelius.ListChallengesRequest
+	0, // 8: aurelius.InstanceService.GetInstance:output_type -> aurelius.Instance
+	3, // 9: aurelius.InstanceService.ListInstances:output_type -> aurelius.InstanceList
+	0, // 10: aurelius.InstanceService.CreateInstance:output_type -> aurelius.Instance
+	0, // 11: aurelius.InstanceService.UpdateStatus:output_type -> aurelius.Instance
+	0, // 12: aurelius.InstanceService.RenewInstance:output_type -> aurelius.Instance
+	9, // 13: aurelius.InstanceService.ListChallenges:output_type -> aurelius.ChallengeList
+	8, // [8:14] is the sub-list for method output_type
+	2, // [2:8] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_instance_proto_init() }
@@ -454,7 +610,7 @@ func file_instance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_instance_proto_rawDesc), len(file_instance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

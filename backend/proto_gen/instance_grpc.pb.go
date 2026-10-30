@@ -24,6 +24,7 @@ const (
 	InstanceService_CreateInstance_FullMethodName = "/aurelius.InstanceService/CreateInstance"
 	InstanceService_UpdateStatus_FullMethodName   = "/aurelius.InstanceService/UpdateStatus"
 	InstanceService_RenewInstance_FullMethodName  = "/aurelius.InstanceService/RenewInstance"
+	InstanceService_ListChallenges_FullMethodName = "/aurelius.InstanceService/ListChallenges"
 )
 
 // InstanceServiceClient is the client API for InstanceService service.
@@ -35,6 +36,7 @@ type InstanceServiceClient interface {
 	CreateInstance(ctx context.Context, in *CreateInstanceRequest, opts ...grpc.CallOption) (*Instance, error)
 	UpdateStatus(ctx context.Context, in *UpdateStatusRequest, opts ...grpc.CallOption) (*Instance, error)
 	RenewInstance(ctx context.Context, in *RenewInstanceRequest, opts ...grpc.CallOption) (*Instance, error)
+	ListChallenges(ctx context.Context, in *ListChallengesRequest, opts ...grpc.CallOption) (*ChallengeList, error)
 }
 
 type instanceServiceClient struct {
@@ -95,6 +97,16 @@ func (c *instanceServiceClient) RenewInstance(ctx context.Context, in *RenewInst
 	return out, nil
 }
 
+func (c *instanceServiceClient) ListChallenges(ctx context.Context, in *ListChallengesRequest, opts ...grpc.CallOption) (*ChallengeList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChallengeList)
+	err := c.cc.Invoke(ctx, InstanceService_ListChallenges_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InstanceServiceServer is the server API for InstanceService service.
 // All implementations must embed UnimplementedInstanceServiceServer
 // for forward compatibility.
@@ -104,6 +116,7 @@ type InstanceServiceServer interface {
 	CreateInstance(context.Context, *CreateInstanceRequest) (*Instance, error)
 	UpdateStatus(context.Context, *UpdateStatusRequest) (*Instance, error)
 	RenewInstance(context.Context, *RenewInstanceRequest) (*Instance, error)
+	ListChallenges(context.Context, *ListChallengesRequest) (*ChallengeList, error)
 	mustEmbedUnimplementedInstanceServiceServer()
 }
 
@@ -128,6 +141,9 @@ func (UnimplementedInstanceServiceServer) UpdateStatus(context.Context, *UpdateS
 }
 func (UnimplementedInstanceServiceServer) RenewInstance(context.Context, *RenewInstanceRequest) (*Instance, error) {
 	return nil, status.Error(codes.Unimplemented, "method RenewInstance not implemented")
+}
+func (UnimplementedInstanceServiceServer) ListChallenges(context.Context, *ListChallengesRequest) (*ChallengeList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListChallenges not implemented")
 }
 func (UnimplementedInstanceServiceServer) mustEmbedUnimplementedInstanceServiceServer() {}
 func (UnimplementedInstanceServiceServer) testEmbeddedByValue()                         {}
@@ -240,6 +256,24 @@ func _InstanceService_RenewInstance_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InstanceService_ListChallenges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListChallengesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstanceServiceServer).ListChallenges(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstanceService_ListChallenges_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstanceServiceServer).ListChallenges(ctx, req.(*ListChallengesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InstanceService_ServiceDesc is the grpc.ServiceDesc for InstanceService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +300,10 @@ var InstanceService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RenewInstance",
 			Handler:    _InstanceService_RenewInstance_Handler,
+		},
+		{
+			MethodName: "ListChallenges",
+			Handler:    _InstanceService_ListChallenges_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

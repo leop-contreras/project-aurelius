@@ -9,6 +9,7 @@ service InstanceService {
   rpc CreateInstance(CreateInstanceRequest) returns (Instance);
   rpc UpdateStatus(UpdateStatusRequest) returns (Instance);
   rpc RenewInstance(RenewInstanceRequest) returns (Instance);
+  rpc ListChallenges(ListChallengesRequest) returns (ChallengeList);
 }
 
 message Instance {
@@ -41,4 +42,16 @@ message UpdateStatusRequest {
 
 message RenewInstanceRequest {
   int32 id = 1;
+}
+
+message Challenge {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message ListChallengesRequest {}
+
+message ChallengeList {
+  repeated Challenge challenges = 1;
 }

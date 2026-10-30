@@ -90,6 +90,7 @@ func main() {
 	}
 
 	instanceModel := &models.InstanceModel{DB: db}
+	challengeModel := &models.ChallengeModel{DB: db}
 	dockerClient := dockerx.NewClient(os.Getenv("DOCKER_SOCKET"))
 
 	log.Printf("Starting worker %v", debugWorkerID)
@@ -100,7 +101,7 @@ func main() {
 	role := os.Getenv("ROLE")
 	switch role {
 	case "get":
-		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.ReadController{InstanceModel: instanceModel})
+		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.ReadController{InstanceModel: instanceModel, ChallengeModel: challengeModel})
 	case "post":
 		maxContainers, err := strconv.Atoi(os.Getenv("MAX_CONTAINERS"))
 		if err != nil {
