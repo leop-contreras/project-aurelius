@@ -37,7 +37,7 @@ If there are no instances, the first command prints `docker: 'docker rm' require
 ## Architecture
 
 ```
-frontend:3000
+frontend:3000            (challenges and admin pages)
       |  HTTP/JSON
       v
  nginx-gateway:8000       (reverse proxy, CORS)
@@ -73,14 +73,14 @@ frontend:3000
 
 | Module | Container(s) | Notes |
 |---|---|---|
-| Frontend | `frontend` | Static HTML + nginx. Port 3000. |
+| Frontend | `frontend` | Static HTML + nginx, two pages: challenges (`/`) and admin (`/admin.html`). Port 3000. See [Frontend](#frontend). |
 | Gateway + load balancer | `nginx-gateway` | nginx + consul-template. Config is `nginx-gateway/templates/nginx.conf.ctmpl`. Port 8000 (HTTP) and 9000 (gRPC). |
 | API service | `api-service` | Receives the frontend's REST calls and calls the backends over gRPC through `nginx-gateway:9000`. MVC. |
 | Service discovery | `consul` | Single node, dev mode. Service registry + health checks. UI on port 8500. |
 | Backends | `backend-{get,post,put}-{1,2}` | gRPC on port 50051. One image, role set by `ROLE`, identity set by `INSTANCE_ID`. Register themselves in consul. post and put publish events to Kafka. MVC. |
 | Message broker | `kafka` | Apache Kafka 3.8, single node, KRaft (no Zookeeper). Only reachable inside the compose network, as `kafka:9092`. |
 | Events service | `events-{audit,history}-{1,2}` | Kafka consumers. One image, role set by `ROLE`: `audit` logs every event, `history` writes it to `instance_history`. MVC. |
-| Database | `postgres_db` | Tables created from `schema.sql` on first start. No seed rows. |
+| Database | `postgres_db` | Tables created from `schema.sql` on first start. Seeds 6 challenges, no instances. |
 | Instances | `aurelius-instance-<id>` | `hashicorp/http-echo`, created by post and stopped/removed by put through the Docker socket. Not part of compose. See [Instances](#instances). |
 
 ## gRPC
@@ -91,11 +91,12 @@ Contract is `proto/instance.proto`, service `aurelius.InstanceService`:
 |---|---|---|---|
 | `GetInstance` | get backends | `{"id": 1}` | `Instance` |
 | `ListInstances` | get backends | `{}` | `InstanceList` |
-| `CreateInstance` | post backends | `{"name": "x"}` | `Instance` |
+| `ListChallenges` | get backends | `{}` | `ChallengeList` |
+| `CreateInstance` | post backends | `{"challenge_id": 1}` | `Instance` |
 | `UpdateStatus` | put backends | `{"id": 1, "status": "inactive"}` | `Instance` |
 | `RenewInstance` | put backends | `{"id": 1}` | `Instance` |
 
-`Instance` is `{id, name, status, port, expires_at, renew_count}`.
+`Instance` is `{id, name, status, port, expires_at, renew_count, challenge_id}`. `Challenge` is `{id, name, description}`.
 
 Each backend only registers the RPC of its role. nginx routes by RPC path (`location /aurelius.InstanceService/GetInstance` -> `get_pool`) with `grpc_pass`. The answering worker comes back in the `x-worker-id` response header.
 
@@ -113,7 +114,7 @@ Every instance is a real container on the host's Docker daemon, next to the comp
 
 | Action | What happens |
 |---|---|
-| Create | post checks the limit, inserts the row with the lowest free port in `10000-10100` and `expires_at = now + 1h`, pulls the image if missing, creates and starts `aurelius-instance-<id>` with `-text="Hello from <name>"`. If Docker fails, the container and the row are removed and it returns 500. |
+| Create | post looks up the challenge (404 `Challenge not found` if it doesn't exist), checks the limit, inserts the row with the challenge's name, the lowest free port in `10000-10100` and `expires_at = now + 1h`, pulls the image if missing, creates and starts `aurelius-instance-<id>` with `-text="Hello from <name>"`. If Docker fails, the container and the row are removed and it returns 500. |
 | Inactive | put checks the instance through get, stops and removes the container, then sets `inactive`. If Docker fails it returns 500 and the instance stays `active`. A container that's already gone counts as removed. |
 | Active | Only valid if it's already active (no change). An inactive instance can't be reactivated, create a new one. |
 | Renew | put sets `expires_at = now + 1h` again and adds 1 to `renew_count`. Only active instances, at most 5 times. |
@@ -129,24 +130,24 @@ Every instance is a real container on the host's Docker daemon, next to the comp
 Rejections (`Max container count exceeded`, `Inactive instances cannot be reactivated`, `Inactive instances cannot be renewed`, `Max renewal count exceeded`) return 500. An unknown status returns 400 (`Invalid status`).
 
 ```bash
-curl -s -X POST localhost:8000/instance/create -H 'Content-Type: application/json' -d '{"name": "demo"}'
+curl -s -X POST localhost:8000/instance/create -H 'Content-Type: application/json' -d '{"challenge_id": 2}'
 ```
 ```
-{"id":2,"name":"demo","status":"active","port":10000,"expires_at":"2026-10-28T06:34:52Z","renew_count":0}
+{"id":2,"name":"Port Hopper","status":"active","port":10000,"expires_at":"2026-10-30T03:05:13Z","renew_count":0,"challenge_id":2}
 ```
 
 ```bash
 curl -s localhost:10000
 ```
 ```
-Hello from demo
+Hello from Port Hopper
 ```
 
 ```bash
 curl -s -X PUT localhost:8000/instance/renew -H 'Content-Type: application/json' -d '{"id": 2}'
 ```
 ```
-{"id":2,"name":"demo","status":"active","port":10000,"expires_at":"2026-10-28T06:34:53Z","renew_count":1}
+{"id":2,"name":"Port Hopper","status":"active","port":10000,"expires_at":"2026-10-30T03:05:14Z","renew_count":1,"challenge_id":2}
 ```
 
 ```bash
@@ -159,6 +160,20 @@ aurelius-instance-2 0.0.0.0:10000->5678/tcp
 - The ports are published on `0.0.0.0`, so instances are reachable from your local network.
 - Containers and rows are not reconciled: a container removed by hand leaves its row `active` until it expires or is set inactive.
 - Expiring and renewing don't publish Kafka events.
+
+## Frontend
+
+Static pages in `frontend/` (`index.html`, `admin.html`, shared `app.js`), styled like CTFd + ctfd-whale. Tailwind v4 (browser build), lucide icons and Google Fonts load from CDNs, so the browser needs internet.
+
+| Page | What it does |
+|---|---|
+| Challenges (`/`) | One card per challenge from `GET /challenges`. Clicking one opens a modal with the description and the challenge's instance: Launch, or the id, link, port, time left, renews, Renew and Destroy (= set inactive). |
+| Admin (`/admin.html`) | Every instance (All / Active / Inactive) with link, port, time left, renews, and Renew/Destroy per row. Gateway status (`/status`) and the workers that answered the last 20 requests. |
+
+- There's no login. Each challenge has at most one active instance, shared by everyone. That limit is only checked in the page (Launch is hidden while one is active), the API doesn't enforce it.
+- After every action a toast shows the worker that answered (`X-Worker-ID`), the request and its status code. Errors show `?`, because the backends only send the worker id on success.
+- Errors are shown as the API returned them, in the modal or under the admin table.
+- Both pages poll every 2s. The countdowns update every second.
 
 ## Kafka
 
@@ -226,7 +241,8 @@ docker exec postgres_db psql -U adm1n -d aurelius -c "SELECT instance_id, event_
 |---|---|---|
 | GET | `/instance?id=1` | read service |
 | GET | `/instances` | read service |
-| POST | `/instance/create` `{"name"}` | write service |
+| GET | `/challenges` | read service |
+| POST | `/instance/create` `{"challenge_id"}` | write service |
 | PUT | `/instance/update-status` `{"id", "status"}` | update service |
 | PUT | `/instance/renew` `{"id"}` | update service |
 | GET | `/health` | nginx liveness, answered by nginx |
@@ -250,30 +266,57 @@ aurelius.InstanceService is a service:
 service InstanceService {
   rpc CreateInstance ( .aurelius.CreateInstanceRequest ) returns ( .aurelius.Instance );
   rpc GetInstance ( .aurelius.GetInstanceRequest ) returns ( .aurelius.Instance );
+  rpc ListChallenges ( .aurelius.ListChallengesRequest ) returns ( .aurelius.ChallengeList );
   rpc ListInstances ( .aurelius.ListInstancesRequest ) returns ( .aurelius.InstanceList );
   rpc RenewInstance ( .aurelius.RenewInstanceRequest ) returns ( .aurelius.Instance );
   rpc UpdateStatus ( .aurelius.UpdateStatusRequest ) returns ( .aurelius.Instance );
 }
 ```
 
-### 2. CreateInstance
+### 2. ListChallenges
 
 ```bash
-grpcurl -plaintext -import-path proto -proto instance.proto -d '{"name": "from-grpcurl"}' localhost:9000 aurelius.InstanceService/CreateInstance
+grpcurl -plaintext -import-path proto -proto instance.proto localhost:9000 aurelius.InstanceService/ListChallenges
+```
+```
+{
+  "challenges": [
+    {
+      "id": 1,
+      "name": "Echo Chamber",
+      "description": "The server only repeats what it was told. Launch it and see what it says."
+    },
+    {
+      "id": 2,
+      "name": "Port Hopper",
+      "description": "Every instance gets its own port. Find yours and connect to it."
+    },
+    ...
+  ]
+}
+```
+
+Cut after 2 of the 6 challenges.
+
+### 3. CreateInstance
+
+```bash
+grpcurl -plaintext -import-path proto -proto instance.proto -d '{"challenge_id": 1}' localhost:9000 aurelius.InstanceService/CreateInstance
 ```
 ```
 {
   "id": 1,
-  "name": "from-grpcurl",
+  "name": "Echo Chamber",
   "status": "active",
   "port": 10000,
-  "expiresAt": "2026-10-28T06:34:35Z"
+  "expiresAt": "2026-10-30T03:04:55Z",
+  "challengeId": 1
 }
 ```
 
-`curl -s localhost:10000` answers `Hello from from-grpcurl`. grpcurl hides fields with their zero value, like `renewCount: 0`.
+`curl -s localhost:10000` answers `Hello from Echo Chamber`. grpcurl hides fields with their zero value, like `renewCount: 0`.
 
-### 3. GetInstance, showing the worker that answered
+### 4. GetInstance, showing the worker that answered
 
 ```bash
 grpcurl -plaintext -v -import-path proto -proto instance.proto -d '{"id": 1}' localhost:9000 aurelius.InstanceService/GetInstance
@@ -281,23 +324,24 @@ grpcurl -plaintext -v -import-path proto -proto instance.proto -d '{"id": 1}' lo
 ```
 Response headers received:
 content-type: application/grpc
-date: Wed, 28 Oct 2026 05:34:36 GMT
+date: Fri, 30 Oct 2026 02:04:57 GMT
 server: nginx/1.31.6
-x-worker-id: 1
+x-worker-id: 2
 
 Response contents:
 {
   "id": 1,
-  "name": "from-grpcurl",
+  "name": "Echo Chamber",
   "status": "active",
   "port": 10000,
-  "expiresAt": "2026-10-28T06:34:35Z"
+  "expiresAt": "2026-10-30T03:04:55Z",
+  "challengeId": 1
 }
 ```
 
 Run it again and `x-worker-id` alternates between 1 and 2.
 
-### 4. ListInstances
+### 5. ListInstances
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto localhost:9000 aurelius.InstanceService/ListInstances
@@ -307,16 +351,17 @@ grpcurl -plaintext -import-path proto -proto instance.proto localhost:9000 aurel
   "instances": [
     {
       "id": 1,
-      "name": "from-grpcurl",
+      "name": "Echo Chamber",
       "status": "active",
       "port": 10000,
-      "expiresAt": "2026-10-28T06:34:35Z"
+      "expiresAt": "2026-10-30T03:04:55Z",
+      "challengeId": 1
     }
   ]
 }
 ```
 
-### 5. RenewInstance
+### 6. RenewInstance
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1}' localhost:9000 aurelius.InstanceService/RenewInstance
@@ -324,15 +369,16 @@ grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1}' local
 ```
 {
   "id": 1,
-  "name": "from-grpcurl",
+  "name": "Echo Chamber",
   "status": "active",
   "port": 10000,
-  "expiresAt": "2026-10-28T06:34:38Z",
-  "renewCount": 1
+  "expiresAt": "2026-10-30T03:04:58Z",
+  "renewCount": 1,
+  "challengeId": 1
 }
 ```
 
-### 6. UpdateStatus to inactive (put calls get, then removes the container)
+### 7. UpdateStatus to inactive (put calls get, then removes the container)
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1, "status": "inactive"}' localhost:9000 aurelius.InstanceService/UpdateStatus
@@ -340,17 +386,18 @@ grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1, "statu
 ```
 {
   "id": 1,
-  "name": "from-grpcurl",
+  "name": "Echo Chamber",
   "status": "inactive",
   "port": 10000,
-  "expiresAt": "2026-10-28T06:34:38Z",
-  "renewCount": 1
+  "expiresAt": "2026-10-30T03:04:58Z",
+  "renewCount": 1,
+  "challengeId": 1
 }
 ```
 
-`docker logs backend-put-1` shows `Instance 1 exists, checked by read worker [2]` and `Instance 1 inactive, container removed`. `aurelius-instance-1` is gone from `docker ps -a`.
+The put backend that answered logs `Instance 1 exists, checked by read worker [2]` and `Instance 1 inactive, container removed` (`docker logs backend-put-2`). `aurelius-instance-1` is gone from `docker ps -a`.
 
-### 7. Reactivating or renewing an inactive instance
+### 8. Reactivating or renewing an inactive instance
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1, "status": "active"}' localhost:9000 aurelius.InstanceService/UpdateStatus
@@ -365,7 +412,7 @@ ERROR:
   Message: Inactive instances cannot be renewed
 ```
 
-### 8. Unknown status
+### 9. Unknown status
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 1, "status": "x"}' localhost:9000 aurelius.InstanceService/UpdateStatus
@@ -376,7 +423,18 @@ ERROR:
   Message: Invalid status
 ```
 
-### 9. GetInstance on a missing instance
+### 10. CreateInstance for a missing challenge
+
+```bash
+grpcurl -plaintext -import-path proto -proto instance.proto -d '{"challenge_id": 99}' localhost:9000 aurelius.InstanceService/CreateInstance
+```
+```
+ERROR:
+  Code: NotFound
+  Message: Challenge not found
+```
+
+### 11. GetInstance on a missing instance
 
 ```bash
 grpcurl -plaintext -import-path proto -proto instance.proto -d '{"id": 999999}' localhost:9000 aurelius.InstanceService/GetInstance
@@ -387,7 +445,7 @@ ERROR:
   Message: Instance not found
 ```
 
-### 10. UpdateStatus on a missing instance
+### 12. UpdateStatus on a missing instance
 
 The `NotFound` comes from the get service, the put service never touches the database or Docker.
 
@@ -400,7 +458,7 @@ ERROR:
   Message: Instance not found
 ```
 
-### 11. No healthy backends
+### 13. No healthy backends
 
 ```bash
 docker stop backend-get-1 backend-get-2
@@ -413,7 +471,7 @@ ERROR:
   Message: unexpected HTTP status code received from server: 502 (Bad Gateway); transport: received unexpected content-type "text/html"
 ```
 
-### 12. Without the proto file
+### 14. Without the proto file
 
 ```bash
 grpcurl -plaintext localhost:9000 list
@@ -425,20 +483,19 @@ Failed to list services: server does not support the reflection API
 ## Demo
 
 1. Open <http://localhost:8500/ui>, you'll see the 6 backends under `backend`, all passing.
-2. In <http://localhost:3000>, click Create. The instance shows up in the Instances table with its link (`http://localhost:10000`) and the time left. It takes ~0.3s, or ~3s the first time if the image wasn't pulled.
-3. Open the link, it answers `Hello from instance1`. `docker ps --filter label=aurelius.instance` shows `aurelius-instance-1`.
-4. Click Read a few times, you'll see how worker IDs alternate.
-5. Run `docker stop backend-get-2`. It disappears from consul and nginx in about a second.
-6. Click Read a few times, only worker 1 answers.
-7. Run `docker start backend-get-2`. It registers again and is back in about 2 seconds.
-8. `docker stop backend-get-1 backend-get-2`. Clicking Read returns 502, and so does Update, because it needs the get service. Start them again.
-9. See the rendered config with `docker exec nginx-gateway cat /etc/nginx/nginx.conf`.
-10. Click Renew on the instance. `renews` goes to 1/5 and the time left goes back to 60m.
-11. Set Update status to `inactive` for id 1 and click Update. The container is stopped and removed (~0.3s), the link and the Renew button disappear.
-12. Set it to `active` again, it returns 500 `Inactive instances cannot be reactivated`.
-13. Click Create 6 times. The 6th returns 500 `Max container count exceeded`.
-14. Make one expire without waiting an hour, e.g. id 2:
-    `docker exec postgres_db psql -U adm1n -d aurelius -c "UPDATE instances SET expires_at = now() WHERE id = 2"`. Within 10s (4-7s measured) its container is removed and it shows `inactive`. `docker logs backend-put-1` shows `Instance 2 expired, container removed`.
-15. Run `docker logs events-audit-1` and `docker logs events-audit-2`. Each create and each inactive shows up in one of them.
-16. Query `instance_history` (see [Inspecting it](#inspecting-it)), the same events are there.
-17. `docker stop events-history-1 events-history-2`, set ids 3 and 4 inactive, `docker start events-history-1 events-history-2`. The history catches up with the events it missed.
+2. Open <http://localhost:3000>. There are 6 challenge cards. Click Echo Chamber, then Launch an instance. The modal shows the id, the link (`http://localhost:10000`), the port, the time left and `0/5` renews. It takes ~0.3s, or ~3s the first time if the image wasn't pulled. A toast shows the post worker that answered (3 or 4).
+3. Open the link, it answers `Hello from Echo Chamber`. `docker ps --filter label=aurelius.instance` shows `aurelius-instance-1`.
+4. Open Admin. The instance is there, and Workers that answered alternates `1 2 1 2`: the table is polled every 2s through the get pool.
+5. Run `docker stop backend-get-2`. It disappears from consul and nginx in about a second, and only worker 1 answers in Admin.
+6. Run `docker start backend-get-2`. It registers again and is back in about 2 seconds.
+7. `docker stop backend-get-1 backend-get-2` and reload Challenges: `Could not load the challenges.` Start them again and the cards are back in ~1.5s.
+8. See the rendered config with `docker exec nginx-gateway cat /etc/nginx/nginx.conf`.
+9. In the challenge's modal click Renew this instance. Renews goes to 1/5 and the time left goes back to 60m.
+10. Click Destroy this instance. The container is stopped and removed (~0.3s) and the modal goes back to Launch an instance.
+11. Launch instances from 5 different challenges. The 6th shows `500 Max container count exceeded` in the modal and a red toast.
+12. Make one expire without waiting an hour, e.g. id 2:
+    `docker exec postgres_db psql -U adm1n -d aurelius -c "UPDATE instances SET expires_at = now() WHERE id = 2"`. Within ~12s (10s cleanup tick + 2s poll; 9.7s measured) the open modal goes back to Launch and Admin shows it `inactive`. `docker logs backend-put-1` shows `Instance 2 expired, container removed`.
+13. Run `docker stop api-service`. Every request takes 1s (504). An open Admin keeps showing the last list it got; reloading it shows `No instances.`. `docker start api-service` and the table is back on the next poll.
+14. Run `docker logs events-audit-1` and `docker logs events-audit-2`. Each create and each destroy shows up in one of them.
+15. Query `instance_history` (see [Inspecting it](#inspecting-it)), the same events are there.
+16. `docker stop events-history-1 events-history-2`, destroy two instances, `docker start events-history-1 events-history-2`. The history catches up with the events it missed.
