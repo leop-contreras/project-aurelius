@@ -26,6 +26,7 @@ func main() {
 	http.HandleFunc("POST /instance/create", instanceController.CreateInstanceHandler)
 	http.HandleFunc("PUT /instance/update-status", instanceController.UpdateStatusHandler)
 	http.HandleFunc("PUT /instance/renew", instanceController.RenewInstanceHandler)
+	http.HandleFunc("GET /challenges", instanceController.ListChallengesHandler)
 
 	log.Println("Server is running on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))

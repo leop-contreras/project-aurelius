@@ -26,6 +26,12 @@ type instance struct {
 	ChallengeID int32  `json:"challenge_id"`
 }
 
+type challenge struct {
+	ID          int32  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func toJSON(in *proto_gen.Instance) instance {
 	return instance{ID: in.Id, Name: in.Name, Status: in.Status, Port: in.Port, ExpiresAt: in.ExpiresAt, RenewCount: in.RenewCount, ChallengeID: in.ChallengeId}
 }
@@ -154,4 +160,20 @@ func (c *InstanceController) RenewInstanceHandler(w http.ResponseWriter, r *http
 	}
 
 	writeInstance(w, header, instance)
+}
+
+func (c *InstanceController) ListChallengesHandler(w http.ResponseWriter, r *http.Request) {
+	var header metadata.MD
+	list, err := c.Client.ListChallenges(r.Context(), &proto_gen.ListChallengesRequest{}, grpc.Header(&header))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	challenges := []challenge{}
+	for _, ch := range list.Challenges {
+		challenges = append(challenges, challenge{ID: ch.Id, Name: ch.Name, Description: ch.Description})
+	}
+
+	writeJSON(w, header, challenges)
 }
