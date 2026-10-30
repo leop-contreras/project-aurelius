@@ -110,10 +110,11 @@ func main() {
 		writer := kafkax.NewWriter([]string{os.Getenv("KAFKA_BROKER")}, events.TopicInstanceCreated)
 		defer writer.Close()
 		proto_gen.RegisterInstanceServiceServer(grpcServer, &controllers.WriteController{
-			InstanceModel: instanceModel,
-			Docker:        dockerClient,
-			MaxContainers: maxContainers,
-			Events:        writer,
+			InstanceModel:  instanceModel,
+			ChallengeModel: challengeModel,
+			Docker:         dockerClient,
+			MaxContainers:  maxContainers,
+			Events:         writer,
 		})
 	case "put":
 		conn, err := grpc.NewClient(os.Getenv("GATEWAY_GRPC_ADDR"), grpc.WithTransportCredentials(insecure.NewCredentials()))

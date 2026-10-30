@@ -17,16 +17,17 @@ type InstanceController struct {
 }
 
 type instance struct {
-	ID         int32  `json:"id"`
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Port       int32  `json:"port"`
-	ExpiresAt  string `json:"expires_at"`
-	RenewCount int32  `json:"renew_count"`
+	ID          int32  `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
+	Port        int32  `json:"port"`
+	ExpiresAt   string `json:"expires_at"`
+	RenewCount  int32  `json:"renew_count"`
+	ChallengeID int32  `json:"challenge_id"`
 }
 
 func toJSON(in *proto_gen.Instance) instance {
-	return instance{ID: in.Id, Name: in.Name, Status: in.Status, Port: in.Port, ExpiresAt: in.ExpiresAt, RenewCount: in.RenewCount}
+	return instance{ID: in.Id, Name: in.Name, Status: in.Status, Port: in.Port, ExpiresAt: in.ExpiresAt, RenewCount: in.RenewCount, ChallengeID: in.ChallengeId}
 }
 
 func writeJSON(w http.ResponseWriter, header metadata.MD, body any) {
@@ -81,7 +82,7 @@ func (c *InstanceController) GetInstanceHandler(w http.ResponseWriter, r *http.R
 
 func (c *InstanceController) CreateInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name string `json:"name"`
+		ChallengeID int32 `json:"challenge_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -89,7 +90,7 @@ func (c *InstanceController) CreateInstanceHandler(w http.ResponseWriter, r *htt
 	}
 
 	var header metadata.MD
-	instance, err := c.Client.CreateInstance(r.Context(), &proto_gen.CreateInstanceRequest{Name: input.Name}, grpc.Header(&header))
+	instance, err := c.Client.CreateInstance(r.Context(), &proto_gen.CreateInstanceRequest{ChallengeId: input.ChallengeID}, grpc.Header(&header))
 	if err != nil {
 		writeError(w, err)
 		return

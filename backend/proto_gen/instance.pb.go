@@ -29,6 +29,7 @@ type Instance struct {
 	Port          int32                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
 	ExpiresAt     string                 `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	RenewCount    int32                  `protobuf:"varint,6,opt,name=renew_count,json=renewCount,proto3" json:"renew_count,omitempty"`
+	ChallengeId   int32                  `protobuf:"varint,7,opt,name=challenge_id,json=challengeId,proto3" json:"challenge_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -101,6 +102,13 @@ func (x *Instance) GetExpiresAt() string {
 func (x *Instance) GetRenewCount() int32 {
 	if x != nil {
 		return x.RenewCount
+	}
+	return 0
+}
+
+func (x *Instance) GetChallengeId() int32 {
+	if x != nil {
+		return x.ChallengeId
 	}
 	return 0
 }
@@ -231,7 +239,7 @@ func (x *InstanceList) GetInstances() []*Instance {
 
 type CreateInstanceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ChallengeId   int32                  `protobuf:"varint,1,opt,name=challenge_id,json=challengeId,proto3" json:"challenge_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -266,11 +274,11 @@ func (*CreateInstanceRequest) Descriptor() ([]byte, []int) {
 	return file_instance_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreateInstanceRequest) GetName() string {
+func (x *CreateInstanceRequest) GetChallengeId() int32 {
 	if x != nil {
-		return x.Name
+		return x.ChallengeId
 	}
-	return ""
+	return 0
 }
 
 type UpdateStatusRequest struct {
@@ -513,7 +521,7 @@ var File_instance_proto protoreflect.FileDescriptor
 
 const file_instance_proto_rawDesc = "" +
 	"\n" +
-	"\x0einstance.proto\x12\baurelius\"\x9a\x01\n" +
+	"\x0einstance.proto\x12\baurelius\"\xbd\x01\n" +
 	"\bInstance\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -522,14 +530,15 @@ const file_instance_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x05 \x01(\tR\texpiresAt\x12\x1f\n" +
 	"\vrenew_count\x18\x06 \x01(\x05R\n" +
-	"renewCount\"$\n" +
+	"renewCount\x12!\n" +
+	"\fchallenge_id\x18\a \x01(\x05R\vchallengeId\"$\n" +
 	"\x12GetInstanceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\"\x16\n" +
 	"\x14ListInstancesRequest\"@\n" +
 	"\fInstanceList\x120\n" +
-	"\tinstances\x18\x01 \x03(\v2\x12.aurelius.InstanceR\tinstances\"+\n" +
-	"\x15CreateInstanceRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"=\n" +
+	"\tinstances\x18\x01 \x03(\v2\x12.aurelius.InstanceR\tinstances\":\n" +
+	"\x15CreateInstanceRequest\x12!\n" +
+	"\fchallenge_id\x18\x01 \x01(\x05R\vchallengeId\"=\n" +
 	"\x13UpdateStatusRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"&\n" +

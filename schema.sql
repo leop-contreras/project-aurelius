@@ -18,7 +18,8 @@ CREATE TABLE instances (
     status VARCHAR(50) NOT NULL,
     port INT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    renew_count INT NOT NULL DEFAULT 0
+    renew_count INT NOT NULL DEFAULT 0,
+    challenge_id INT NOT NULL REFERENCES challenges (id)
 );
 
 CREATE UNIQUE INDEX instances_active_port ON instances (port) WHERE status = 'active';

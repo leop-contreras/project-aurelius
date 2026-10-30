@@ -16,12 +16,13 @@ const (
 )
 
 type Instance struct {
-	ID         int       `json:"id"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	Port       int       `json:"port"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	RenewCount int       `json:"renew_count"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Port        int       `json:"port"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	RenewCount  int       `json:"renew_count"`
+	ChallengeID int       `json:"challenge_id"`
 }
 
 type InstanceModel struct {
@@ -32,11 +33,11 @@ var ErrNotFound = errors.New("instance not found")
 var ErrNoPorts = errors.New("no free ports")
 var ErrCannotRenew = errors.New("instance cannot be renewed")
 
-const columns = "id, name, status, port, expires_at, renew_count"
+const columns = "id, name, status, port, expires_at, renew_count, challenge_id"
 
 func scan(row interface{ Scan(...any) error }) (*Instance, error) {
 	instance := &Instance{}
-	err := row.Scan(&instance.ID, &instance.Name, &instance.Status, &instance.Port, &instance.ExpiresAt, &instance.RenewCount)
+	err := row.Scan(&instance.ID, &instance.Name, &instance.Status, &instance.Port, &instance.ExpiresAt, &instance.RenewCount, &instance.ChallengeID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +83,9 @@ func (m *InstanceModel) CountActive() (int, error) {
 	return count, err
 }
 
-func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
-	query := `INSERT INTO instances (name, status, port, expires_at)
-		SELECT $1, 'active', p, now() + make_interval(secs => $2)
+func (m *InstanceModel) CreateInstance(name string, challengeID int) (*Instance, error) {
+	query := `INSERT INTO instances (name, status, port, expires_at, challenge_id)
+		SELECT $1, 'active', p, now() + make_interval(secs => $2), $5
 		FROM generate_series($3::int, $4::int) AS p
 		WHERE p NOT IN (SELECT port FROM instances WHERE status = 'active')
 		ORDER BY p LIMIT 1
@@ -93,7 +94,7 @@ func (m *InstanceModel) CreateInstance(name string) (*Instance, error) {
 	var err error
 	for attempt := 1; attempt <= 3; attempt++ {
 		var instance *Instance
-		instance, err = scan(m.DB.QueryRow(query, name, Timeout, MinPort, MaxPort))
+		instance, err = scan(m.DB.QueryRow(query, name, Timeout, MinPort, MaxPort, challengeID))
 		if err == nil {
 			return instance, nil
 		}

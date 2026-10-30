@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 )
 
 type Challenge struct {
@@ -12,6 +13,21 @@ type Challenge struct {
 
 type ChallengeModel struct {
 	DB *sql.DB
+}
+
+var ErrChallengeNotFound = errors.New("challenge not found")
+
+func (m *ChallengeModel) GetChallengeByID(id int) (*Challenge, error) {
+	challenge := &Challenge{}
+	err := m.DB.QueryRow("SELECT id, name, description FROM challenges WHERE id = $1", id).Scan(&challenge.ID, &challenge.Name, &challenge.Description)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrChallengeNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return challenge, nil
 }
 
 func (m *ChallengeModel) ListChallenges() ([]*Challenge, error) {

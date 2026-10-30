@@ -19,6 +19,7 @@ message Instance {
   int32 port = 4;
   string expires_at = 5;
   int32 renew_count = 6;
+  int32 challenge_id = 7;
 }
 
 message GetInstanceRequest {
@@ -32,7 +33,7 @@ message InstanceList {
 }
 
 message CreateInstanceRequest {
-  string name = 1;
+  int32 challenge_id = 1;
 }
 
 message UpdateStatusRequest {

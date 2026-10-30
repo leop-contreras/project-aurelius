@@ -31,10 +31,11 @@ type ReadController struct {
 
 type WriteController struct {
 	proto_gen.UnimplementedInstanceServiceServer
-	InstanceModel *models.InstanceModel
-	Docker        *dockerx.Client
-	MaxContainers int
-	Events        *kafka.Writer
+	InstanceModel  *models.InstanceModel
+	ChallengeModel *models.ChallengeModel
+	Docker         *dockerx.Client
+	MaxContainers  int
+	Events         *kafka.Writer
 }
 
 type UpdateController struct {
@@ -47,12 +48,13 @@ type UpdateController struct {
 
 func toProto(instance *models.Instance) *proto_gen.Instance {
 	return &proto_gen.Instance{
-		Id:         int32(instance.ID),
-		Name:       instance.Name,
-		Status:     instance.Status,
-		Port:       int32(instance.Port),
-		ExpiresAt:  instance.ExpiresAt.UTC().Format(time.RFC3339),
-		RenewCount: int32(instance.RenewCount),
+		Id:          int32(instance.ID),
+		Name:        instance.Name,
+		Status:      instance.Status,
+		Port:        int32(instance.Port),
+		ExpiresAt:   instance.ExpiresAt.UTC().Format(time.RFC3339),
+		RenewCount:  int32(instance.RenewCount),
+		ChallengeId: int32(instance.ChallengeID),
 	}
 }
 
@@ -101,6 +103,14 @@ func (c *ReadController) ListInstances(ctx context.Context, req *proto_gen.ListI
 }
 
 func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.CreateInstanceRequest) (*proto_gen.Instance, error) {
+	challenge, err := c.ChallengeModel.GetChallengeByID(int(req.ChallengeId))
+	if err != nil {
+		if errors.Is(err, models.ErrChallengeNotFound) {
+			return nil, status.Error(codes.NotFound, "Challenge not found")
+		}
+		return nil, status.Error(codes.Internal, "Failed to get challenge")
+	}
+
 	active, err := c.InstanceModel.CountActive()
 	if err != nil {
 		return nil, status.Error(codes.Internal, "Failed to create instance")
@@ -109,7 +119,7 @@ func (c *WriteController) CreateInstance(ctx context.Context, req *proto_gen.Cre
 		return nil, status.Error(codes.ResourceExhausted, "Max container count exceeded")
 	}
 
-	instance, err := c.InstanceModel.CreateInstance(req.Name)
+	instance, err := c.InstanceModel.CreateInstance(challenge.Name, challenge.ID)
 	if err != nil {
 		if errors.Is(err, models.ErrNoPorts) {
 			return nil, status.Error(codes.ResourceExhausted, "No free ports")
