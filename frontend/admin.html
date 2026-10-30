@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
+<script src="https://unpkg.com/lucide@1.55.0/dist/umd/lucide.min.js"></script>
+<style type="text/tailwindcss">
+@theme {
+  --color-primary: #1AA734;
+  --color-accent: #FFB020;
+  --color-success: #00F58B;
+  --color-danger: #F0544F;
+  --color-text-primary: #EDEDED;
+  --color-text-secondary: #A9A9A9;
+  --color-text-faded: rgba(237, 237, 237, 0.8);
+  --color-dark-background: #090909;
+  --color-dark-sidebar: #131313;
+  --color-dark-cards: #1D1D1D;
+  --color-dark-hover: #282828;
+  --color-dark-outline: #3C3C3C;
+  --font-chakra: "Chakra Petch", sans-serif;
+  --font-mono: "Spline Sans Mono", monospace;
+  --text-huge: clamp(1.5120rem, 1.3807em + 0.6566cqi, 1.7090rem);
+  --text-huge--font-weight: 700;
+  --text-headline: clamp(1.2600rem, 1.1885em + 0.3573cqi, 1.3672rem);
+  --text-headline--font-weight: 600;
+  --text-important: clamp(1.0500rem, 1.0208em + 0.1458cqi, 1.0938rem);
+  --text-important--font-weight: 500;
+  --text-navbar: 0.875rem;
+  --text-navbar--font-weight: 500;
+  --text-body: 0.875rem;
+  --text-small: 0.7rem;
+}
+html { color-scheme: dark; }
+.icon-em { width: 1em; height: 1em; flex-shrink: 0; }
+</style>
+</head>
+<body class="min-h-screen bg-dark-background text-text-primary font-mono">
+
+<nav class="sticky top-0 z-40 bg-dark-sidebar border-b border-dark-outline">
+  <div class="max-w-6xl mx-auto px-4 flex gap-6">
+    <a href="/" class="flex items-center gap-2 py-4 text-navbar border-b-2 border-transparent text-text-secondary hover:text-text-primary transition-colors">
+      <i data-lucide="flag" class="icon-em"></i>Challenges
+    </a>
+    <a href="/admin.html" class="flex items-center gap-2 py-4 text-navbar border-b-2 border-primary text-primary">
+      <i data-lucide="shield" class="icon-em"></i>Admin
+    </a>
+  </div>
+</nav>
+
+<main class="@container max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8">
+  <h1 class="font-chakra text-huge">Admin</h1>
+
+  <section class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h2 class="font-chakra text-headline">Instances</h2>
+      <div id="filters" class="flex gap-1 p-1 rounded border border-dark-outline bg-dark-cards"></div>
+    </div>
+    <div class="overflow-x-auto rounded border border-dark-outline bg-dark-cards">
+      <table class="w-full text-body whitespace-nowrap">
+        <thead>
+          <tr class="text-left text-small uppercase text-text-faded">
+            <th class="px-4 py-3 font-normal">ID</th>
+            <th class="px-4 py-3 font-normal">Challenge</th>
+            <th class="px-4 py-3 font-normal">Status</th>
+            <th class="px-4 py-3 font-normal">Link</th>
+            <th class="px-4 py-3 font-normal">Port</th>
+            <th class="px-4 py-3 font-normal">Time left</th>
+            <th class="px-4 py-3 font-normal">Renews</th>
+            <th class="px-4 py-3 font-normal text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="instances"></tbody>
+      </table>
+    </div>
+    <pre id="adminError" class="whitespace-pre-wrap break-words max-h-40 overflow-auto p-2 rounded border border-danger text-small text-danger" hidden></pre>
+  </section>
+
+  <section class="flex flex-col gap-4">
+    <h2 class="font-chakra text-headline">System</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="p-4 rounded border border-dark-outline bg-dark-cards flex flex-col gap-2">
+        <p class="flex items-center gap-2 text-small uppercase text-text-faded"><i data-lucide="activity" class="icon-em"></i>Gateway status</p>
+        <pre id="status" class="text-body text-text-primary whitespace-pre-wrap">loading...</pre>
+      </div>
+      <div class="p-4 rounded border border-dark-outline bg-dark-cards flex flex-col gap-2">
+        <p class="flex items-center gap-2 text-small uppercase text-text-faded"><i data-lucide="server" class="icon-em"></i>Workers that answered</p>
+        <div id="workers" class="flex flex-wrap gap-1"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+<script>
+let instances = [];
+let filter = "all";
+let lastTable = "";
+
+function renderFilters() {
+  document.getElementById("filters").innerHTML = ["all", "active", "inactive"].map(function (name) {
+    const tone = name === filter
+      ? "bg-dark-hover text-primary"
+      : "text-text-secondary hover:text-text-primary hover:bg-dark-hover";
+    return '<button onclick="setFilter(\'' + name + '\')" class="px-3 py-1 rounded text-body capitalize transition-colors cursor-pointer ' + tone + '">' + name + "</button>";
+  }).join("");
+}
+
+function setFilter(name) {
+  filter = name;
+  renderFilters();
+  renderInstances();
+}
+
+function iconButton(label, icon, onclick, danger) {
+  const tone = danger ? "hover:text-danger" : "hover:text-primary";
+  return '<button onclick="' + onclick + '" title="' + label + '" aria-label="' + label + '"' +
+    ' class="p-1.5 rounded text-text-secondary hover:bg-dark-hover transition-colors cursor-pointer ' + tone + '">' +
+    '<i data-lucide="' + icon + '" class="icon-em"></i></button>';
+}
+
+function renderInstances() {
+  const shown = instances.filter(function (instance) {
+    return filter === "all" || instance.status === filter;
+  });
+
+  let html = shown.map(function (instance) {
+    const active = instance.status === "active";
+    const url = "http://localhost:" + instance.port;
+    return '<tr class="border-t border-dark-outline/60 hover:bg-dark-hover transition-colors">' +
+      '<td class="px-4 py-2 text-text-secondary">' + instance.id + "</td>" +
+      '<td class="px-4 py-2">' + escapeHTML(instance.name) + "</td>" +
+      '<td class="px-4 py-2">' + (active ? '<span class="text-primary">active</span>' : '<span class="text-text-secondary">inactive</span>') + "</td>" +
+      '<td class="px-4 py-2">' + (active ? '<a href="' + url + '" target="_blank" class="text-primary hover:underline">' + url + "</a>" : "-") + "</td>" +
+      '<td class="px-4 py-2 text-text-secondary">' + instance.port + "</td>" +
+      '<td class="px-4 py-2">' + (active ? '<span data-expires="' + escapeHTML(instance.expires_at) + '"></span>' : "-") + "</td>" +
+      '<td class="px-4 py-2 text-text-secondary">' + instance.renew_count + "/5</td>" +
+      '<td class="px-4 py-2"><div class="flex justify-end gap-1">' +
+      (active ? iconButton("Renew", "refresh-cw", "renew(" + instance.id + ")", false) + iconButton("Destroy", "trash-2", "destroy(" + instance.id + ")", true) : "") +
+      "</div></td></tr>";
+  }).join("");
+
+  if (shown.length === 0) {
+    html = '<tr class="border-t border-dark-outline/60"><td colspan="8" class="px-4 py-6 text-center text-text-secondary">No instances.</td></tr>';
+  }
+
+  if (html === lastTable) return;
+  lastTable = html;
+  document.getElementById("instances").innerHTML = html;
+  drawIcons();
+  tick();
+}
+
+function renderWorkers() {
+  document.getElementById("workers").innerHTML = workers.map(function (workerId) {
+    return '<span class="px-2 py-0.5 rounded border border-dark-outline text-small">' + escapeHTML(workerId) + "</span>";
+  }).join("");
+}
+
+async function action(method, path, body) {
+  const result = await send(method, path, body);
+  const box = document.getElementById("adminError");
+  box.textContent = result.ok ? "" : result.status + "\n" + result.text;
+  box.hidden = result.ok;
+  loadInstances();
+}
+
+function renew(id) {
+  action("PUT", PATH_RENEW, { id: id });
+}
+
+function destroy(id) {
+  action("PUT", PATH_UPDATE, { id: id, status: "inactive" });
+}
+
+async function loadInstances() {
+  const list = await load(PATH_LIST);
+  if (list) instances = list;
+  renderInstances();
+  renderWorkers();
+}
+
+async function areYouAlive() {
+  try {
+    const res = await fetch(API + "/status");
+    document.getElementById("status").textContent = await res.text();
+  } catch (e) {
+    document.getElementById("status").textContent = "middleware unreachable";
+  }
+}
+
+renderFilters();
+drawIcons();
+loadInstances();
+areYouAlive();
+setInterval(loadInstances, 2000);
+setInterval(areYouAlive, 2000);
+</script>
+
+</body>
+</html>
